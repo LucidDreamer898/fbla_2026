@@ -281,7 +281,7 @@ export default function ItemDetailPage() {
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-white mb-4">Item Not Found</h1>
-            <p className="text-gray-400 mb-6">The item you're looking for doesn't exist or has been removed.</p>
+            <p className="text-gray-400 mb-6">The item you&apos;re looking for doesn&apos;t exist or has been removed.</p>
             <Button href="/items" className="bg-gradient-to-r from-purple-500 to-pink-500">
               Back to Browse
             </Button>

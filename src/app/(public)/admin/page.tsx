@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/Button';
 import { FirestoreItem } from '@/types/item';
-import BackgroundAnimation from '@/components/BackgroundAnimation';
 
 // TODO: Implement with your database solution
 const adminApproveItem = async (itemId: string, adminNotes?: string) => {
@@ -21,30 +19,28 @@ const adminRejectItem = async (itemId: string, adminNotes?: string) => {
 export default function AdminPage() {
   const [pendingItems, setPendingItems] = useState<FirestoreItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // For demo purposes, we'll show mock pending items
-  const mockPendingItems: FirestoreItem[] = [
-    {
-      id: '1',
-      title: 'Test Item 1',
-      description: 'This is a test item submitted from the form',
-      category: 'Electronics',
-      location: 'Test Location',
-      dateFound: { toDate: () => new Date() } as any,
-      status: 'pending',
-      photos: [],
-      reportedBy: 'anonymous',
-      createdAt: { toDate: () => new Date() } as any,
-      updatedAt: { toDate: () => new Date() } as any,
-      tags: ['test', 'demo'],
-    },
-  ];
 
   useEffect(() => {
     // Simulate loading
+    const mockItems: FirestoreItem[] = [
+      {
+        id: '1',
+        title: 'Test Item 1',
+        description: 'This is a test item submitted from the form',
+        category: 'Electronics',
+        location: 'Test Location',
+        dateFound: { toDate: () => new Date() } as { toDate: () => Date },
+        status: 'pending',
+        photos: [],
+        reportedBy: 'anonymous',
+        createdAt: { toDate: () => new Date() } as { toDate: () => Date },
+        updatedAt: { toDate: () => new Date() } as { toDate: () => Date },
+        tags: ['test', 'demo'],
+      },
+    ];
     setTimeout(() => {
-      setPendingItems(mockPendingItems);
+      setPendingItems(mockItems);
       setLoading(false);
     }, 1000);
   }, []);

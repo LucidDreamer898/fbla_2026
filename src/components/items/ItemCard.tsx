@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Badge } from '@/components/ui/Badge';
 
 interface Item {
   id: string;

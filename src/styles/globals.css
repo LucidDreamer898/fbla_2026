@@ -149,11 +149,11 @@ body {
 @keyframes particle {
   0%, 100% {
     transform: translateY(0) scale(1);
-    opacity: 0.2;
+    opacity: 0.25;
   }
   50% {
-    transform: translateY(-100px) scale(1.5);
-    opacity: 0.8;
+    transform: translateY(-60px) scale(1.4);
+    opacity: 0.6;
   }
 }
 

@@ -13,7 +13,7 @@ export default function BackgroundAnimation() {
 
   useEffect(() => {
     // Generate particles on client side only
-    const generatedParticles = Array.from({ length: 20 }, (_, i) => ({
+    const generatedParticles = Array.from({ length: 20 }, () => ({
       left: Math.random() * 100,
       top: Math.random() * 100,
       delay: Math.random() * 10,
@@ -36,13 +36,13 @@ export default function BackgroundAnimation() {
       {/* Animated grid pattern */}
       <div className="absolute inset-0 bg-grid-pattern opacity-10 animate-grid-move" />
       
-      {/* Subtle particles */}
+      {/* Subtle particles - small dots scattered across the screen */}
       {isClient && (
         <div className="absolute inset-0">
           {particles.map((particle, i) => (
             <div
               key={i}
-              className="absolute w-1 h-1 bg-white/20 rounded-full animate-particle"
+              className="absolute w-1 h-1 bg-white/30 rounded-full animate-particle"
               style={{
                 left: `${particle.left}%`,
                 top: `${particle.top}%`,

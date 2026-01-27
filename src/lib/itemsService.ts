@@ -71,7 +71,7 @@ export async function fetchApprovedItems() {
 
 // Submit new item to database
 // TODO: Implement with your database solution
-export async function submitItem(formData: {
+export async function submitItem(_formData: {
   title: string;
   description: string;
   category: string;
@@ -83,7 +83,7 @@ export async function submitItem(formData: {
 }) {
   try {
     // TODO: Replace with actual database call
-    // const firestoreItemData = convertFormDataToFirestoreItem(formData);
+    // const firestoreItemData = convertFormDataToFirestoreItem(_formData);
     // const itemId = await yourDatabaseService.createItem(firestoreItemData);
     // return itemId;
     throw new Error('Database integration not implemented');

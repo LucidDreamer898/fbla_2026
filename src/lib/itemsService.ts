@@ -59,6 +59,19 @@ export function convertFormDataToFirestoreItem(formData: {
 // TODO: Implement with your database solution
 export async function fetchApprovedItems() {
   try {
+    console.log('DATABASE:', {
+      operation: 'fetchApprovedItems',
+      data: {},
+    });
+    console.log('DATABASE: fetchApprovedItems', {});
+    // Log to terminal
+    if (typeof window !== 'undefined') {
+      fetch('/api/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operation: 'fetchApprovedItems', data: {} }),
+      }).catch(() => {});
+    }
     // TODO: Replace with actual database call
     // const items = await yourDatabaseService.listApprovedItems();
     // return items.map(convertFirestoreItemToDisplayItem);
@@ -82,13 +95,26 @@ export async function submitItem(formData: {
   reportedBy: string;
 }) {
   try {
+    console.log('DATABASE:', {
+      operation: 'submitItem',
+      data: formData,
+    });
+    console.log('DATABASE: submitItem', formData);
+    // Log to terminal
+    if (typeof window !== 'undefined') {
+      fetch('/api/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ operation: 'submitItem', data: formData }),
+      }).catch(() => {});
+    }
     // TODO: Replace with actual database call
     // const firestoreItemData = convertFormDataToFirestoreItem(formData);
     // const itemId = await yourDatabaseService.createItem(firestoreItemData);
     // return itemId;
-    // Reference formData to satisfy ESLint (will be used when TODO is implemented)
-    void formData;
-    throw new Error('Database integration not implemented');
+    // Simulate success for testing
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return 'mock-item-id-' + Date.now(); // Return a mock ID for testing
   } catch (error) {
     console.error('Error submitting item:', error);
     throw new Error('Failed to submit item');

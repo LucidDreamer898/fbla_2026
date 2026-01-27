@@ -8,6 +8,7 @@ interface Filters {
   dateFrom: string;
   dateTo: string;
   colors: string[];
+  hasPhoto: boolean;
 }
 
 interface ItemFiltersProps {
@@ -84,6 +85,7 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
       dateFrom: '',
       dateTo: '',
       colors: [],
+      hasPhoto: false,
     });
   };
 
@@ -140,24 +142,22 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
             placeholder="Search items..."
             value={filters.search}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full border text-white text-sm placeholder-gray-400 rounded-md transition-all"
+            className="w-full border text-white text-sm placeholder-gray-400 rounded-md transition-all focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500"
             style={{ 
               backgroundColor: '#1a1a1a',
               borderColor: '#2a2a2a',
               paddingTop: '10px', 
               paddingBottom: '10px',
               paddingLeft: '44px',
-              paddingRight: '20px',
-              '--tw-ring-color': '#a855f7',
-              '--tw-border-opacity': '1'
-            }}
+              paddingRight: '20px'
+            } as React.CSSProperties}
             onFocus={(e) => {
-              e.target.style.borderColor = '#8e4ec6';
-              e.target.style.boxShadow = '0 0 0 2px rgba(142, 78, 198, 0.2)';
+              (e.currentTarget as HTMLElement).style.borderColor = '#8e4ec6';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 2px rgba(142, 78, 198, 0.2)';
             }}
             onBlur={(e) => {
-              e.target.style.borderColor = '#2a2a2a';
-              e.target.style.boxShadow = 'none';
+              (e.currentTarget as HTMLElement).style.borderColor = '#2a2a2a';
+              (e.currentTarget as HTMLElement).style.boxShadow = 'none';
             }}
           />
         </div>
@@ -179,8 +179,8 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
               padding: '16px 20px',
               marginBottom: expandedSections.category ? '20px' : '0'
             }}
-            onMouseEnter={(e) => e.target.style.color = '#8e4ec6'}
-            onMouseLeave={(e) => e.target.style.color = '#ffffff'}
+            onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = '#8e4ec6'}
+            onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = '#ffffff'}
           >
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" style={{ color: '#8e4ec6' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -259,8 +259,8 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
               padding: '12px 16px',
               marginBottom: expandedSections.date ? '16px' : '0'
             }}
-            onMouseEnter={(e) => e.target.style.color = '#8e4ec6'}
-            onMouseLeave={(e) => e.target.style.color = '#ffffff'}
+            onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = '#8e4ec6'}
+            onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = '#ffffff'}
           >
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" style={{ color: '#ff0080' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -296,12 +296,12 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
                   borderColor: '#2a2a2a'
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#8e4ec6';
-                  e.target.style.boxShadow = '0 0 0 2px rgba(142, 78, 198, 0.2)';
+                  (e.currentTarget as HTMLElement).style.borderColor = '#8e4ec6';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 2px rgba(142, 78, 198, 0.2)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = '#2a2a2a';
-                  e.target.style.boxShadow = 'none';
+                  (e.currentTarget as HTMLElement).style.borderColor = '#2a2a2a';
+                  (e.currentTarget as HTMLElement).style.boxShadow = 'none';
                 }}
               />
               <input
@@ -315,12 +315,12 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
                   borderColor: '#2a2a2a'
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#8e4ec6';
-                  e.target.style.boxShadow = '0 0 0 2px rgba(142, 78, 198, 0.2)';
+                  (e.currentTarget as HTMLElement).style.borderColor = '#8e4ec6';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '0 0 0 2px rgba(142, 78, 198, 0.2)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = '#2a2a2a';
-                  e.target.style.boxShadow = 'none';
+                  (e.currentTarget as HTMLElement).style.borderColor = '#2a2a2a';
+                  (e.currentTarget as HTMLElement).style.boxShadow = 'none';
                 }}
               />
             </div>
@@ -344,8 +344,8 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
                 padding: '12px 16px',
                 marginBottom: expandedSections.colors ? '16px' : '0'
               }}
-            onMouseEnter={(e) => e.target.style.color = '#8e4ec6'}
-            onMouseLeave={(e) => e.target.style.color = '#ffffff'}
+            onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.color = '#8e4ec6'}
+            onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.color = '#ffffff'}
           >
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" style={{ color: '#8e4ec6' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">

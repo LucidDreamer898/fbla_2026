@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { FirestoreItem } from '@/types/item';
 // TODO: Import your database function when implemented
 // import { getItemById } from '@/lib/your-database-service';
@@ -39,6 +40,13 @@ export default function ItemDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isClaimModalOpen, setIsClaimModalOpen] = useState(false);
+  const [claimForm, setClaimForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Mock items data for demo - simulating different items based on ID
   const getMockItem = (id: string): FirestoreItem => {
@@ -190,6 +198,17 @@ export default function ItemDetailPage() {
         setError(null);
         
         // TODO: Replace with real database call when implemented
+        console.log('DATABASE:', {
+          operation: 'getItemById',
+          data: { itemId },
+        });
+        console.log('DATABASE: getItemById', { itemId });
+        // Log to terminal
+        fetch('/api/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ operation: 'getItemById', data: { itemId } }),
+        }).catch(() => {});
         // const itemData = await getItemById(itemId);
         // setItem(itemData);
         
@@ -500,10 +519,16 @@ export default function ItemDetailPage() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-4 pt-4">
-                  <Button href="/items" className="flex-1 bg-zinc-700/50 hover:bg-zinc-600/50 border border-zinc-600/50 text-white font-medium py-3 rounded-lg transition-all duration-200">
+                  <Link 
+                    href="/items" 
+                    className="inline-flex items-center justify-center flex-1 bg-zinc-700/50 hover:bg-zinc-600/50 border border-zinc-600/50 text-white font-medium h-12 rounded-lg transition-all duration-200"
+                  >
                     Back to Browse
-                  </Button>
-                  <Button className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium py-3 rounded-lg transition-all duration-200">
+                  </Link>
+                  <Button 
+                    onClick={() => setIsClaimModalOpen(true)}
+                    className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium h-12 rounded-lg transition-all duration-200"
+                  >
                     Claim This Item
                   </Button>
                 </div>
@@ -512,6 +537,142 @@ export default function ItemDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Claim Item Modal */}
+      {isClaimModalOpen && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsClaimModalOpen(false);
+            }
+          }}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          
+          {/* Modal Content */}
+          <div className="relative w-full max-w-md bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-6 backdrop-blur-md shadow-2xl">
+            {/* Header */}
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white mb-2">Claim This Item</h2>
+              <p className="text-gray-400 text-sm">
+                Please provide your contact information to claim this item.
+              </p>
+            </div>
+
+            {/* Form */}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setIsSubmitting(true);
+                
+                // TODO: Implement actual claim submission
+                const submittedAt = new Date();
+                const claimData = {
+                  itemId: item?.id,
+                  name: claimForm.name,
+                  email: claimForm.email,
+                  phone: claimForm.phone,
+                  submittedAt: submittedAt.toISOString(),
+                  submittedAtFormatted: submittedAt.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'numeric',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true,
+                  }),
+                };
+                
+                console.log('DATABASE:', {
+                  operation: 'submitClaim',
+                  data: claimData,
+                });
+                console.log('DATABASE: submitClaim', claimData);
+                // Log to terminal
+                fetch('/api/log', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ operation: 'submitClaim', data: claimData }),
+                }).catch(() => {});
+                
+                // await submitClaim(claimData);
+                
+                // Simulate API call
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                setIsSubmitting(false);
+                setIsClaimModalOpen(false);
+                setClaimForm({ name: '', email: '', phone: '' });
+                
+                // TODO: Show success message
+                alert('Your claim request has been submitted! We will contact you soon.');
+              }}
+              className="space-y-4"
+            >
+              <Input
+                label="Full Name"
+                type="text"
+                value={claimForm.name}
+                onChange={(e) => setClaimForm({ ...claimForm, name: e.target.value })}
+                placeholder="Enter your full name"
+                required
+                className="bg-zinc-900/50 border-zinc-700 text-white"
+              />
+              
+              <Input
+                label="Email Address"
+                type="email"
+                value={claimForm.email}
+                onChange={(e) => setClaimForm({ ...claimForm, email: e.target.value })}
+                placeholder="Enter your email"
+                required
+                className="bg-zinc-900/50 border-zinc-700 text-white"
+              />
+              
+              <Input
+                label="Phone Number"
+                type="tel"
+                value={claimForm.phone}
+                onChange={(e) => setClaimForm({ ...claimForm, phone: e.target.value })}
+                placeholder="Enter your phone number"
+                required
+                className="bg-zinc-900/50 border-zinc-700 text-white"
+              />
+
+              {/* Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setIsClaimModalOpen(false);
+                    setClaimForm({ name: '', email: '', phone: '' });
+                  }}
+                  className="flex-1 bg-zinc-700/50 hover:bg-zinc-600/50 border border-zinc-600/50 text-white font-medium h-12 rounded-lg transition-all duration-200"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !claimForm.name || !claimForm.email || !claimForm.phone}
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium h-12 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Submitting...
+                    </span>
+                  ) : (
+                    'Submit Claim'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

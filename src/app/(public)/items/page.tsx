@@ -102,6 +102,7 @@ export default function BrowseItemsPage() {
     dateFrom: '',
     dateTo: '',
     colors: [] as string[],
+    hasPhoto: false,
   });
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
@@ -256,6 +257,7 @@ export default function BrowseItemsPage() {
                         categories: [],
                         dateFrom: '',
                         dateTo: '',
+                        colors: [],
                         hasPhoto: false,
                       });
                     }}

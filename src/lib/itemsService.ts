@@ -71,7 +71,7 @@ export async function fetchApprovedItems() {
 
 // Submit new item to database
 // TODO: Implement with your database solution
-export async function submitItem(_formData: {
+export async function submitItem(formData: {
   title: string;
   description: string;
   category: string;
@@ -83,9 +83,11 @@ export async function submitItem(_formData: {
 }) {
   try {
     // TODO: Replace with actual database call
-    // const firestoreItemData = convertFormDataToFirestoreItem(_formData);
+    // const firestoreItemData = convertFormDataToFirestoreItem(formData);
     // const itemId = await yourDatabaseService.createItem(firestoreItemData);
     // return itemId;
+    // Reference formData to satisfy ESLint (will be used when TODO is implemented)
+    void formData;
     throw new Error('Database integration not implemented');
   } catch (error) {
     console.error('Error submitting item:', error);

@@ -3,6 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { FirestoreItem } from '@/types/item';
 
+// Helper to convert date-like objects to Date
+function toDate(date: Date | { toDate: () => Date }): Date {
+  if (date instanceof Date) {
+    return date;
+  }
+  if (typeof date === 'object' && 'toDate' in date && typeof date.toDate === 'function') {
+    return date.toDate();
+  }
+  return new Date(date as any);
+}
+
 // TODO: Implement with your database solution
 const adminApproveItem = async (itemId: string, adminNotes?: string) => {
   // TODO: Replace with actual database call
@@ -214,7 +225,7 @@ export default function AdminPage() {
                               <svg className="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
-                              <span>{item.dateFound.toDate().toLocaleDateString()}</span>
+                              <span>{toDate(item.dateFound).toLocaleDateString()}</span>
                             </div>
                           </div>
                           

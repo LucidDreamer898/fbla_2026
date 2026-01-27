@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { FirestoreItem } from '@/types/item';
 // TODO: Import your database function when implemented
@@ -282,9 +283,12 @@ export default function ItemDetailPage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-white mb-4">Item Not Found</h1>
             <p className="text-gray-400 mb-6">The item you&apos;re looking for doesn&apos;t exist or has been removed.</p>
-            <Button href="/items" className="bg-gradient-to-r from-purple-500 to-pink-500">
+            <Link 
+              href="/items" 
+              className="inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 h-10 px-10 text-sm min-w-40 bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90"
+            >
               Back to Browse
-            </Button>
+            </Link>
           </div>
         </div>
       </div>

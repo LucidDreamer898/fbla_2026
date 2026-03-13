@@ -22,9 +22,9 @@ interface DbItem {
 
 export default function BrowseItemsPage() {
   const { user } = useUser();
-  const { organization } = useOrganization();
+  const { organization, membership } = useOrganization();
   const router = useRouter();
-  const isAdmin = organization?.role === 'org:admin';
+  const isAdmin = membership?.role === 'org:admin';
   
   const [items, setItems] = useState<DbItem[]>([]);
   const [loading, setLoading] = useState(true);

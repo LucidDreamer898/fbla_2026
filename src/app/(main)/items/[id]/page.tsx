@@ -619,7 +619,7 @@ export default function ItemDetailPage() {
                   type="button"
                   onClick={() => {
                     setIsClaimModalOpen(false);
-                    setClaimForm({ name: '', email: '', phone: '' });
+                    setClaimForm({ name: '', email: '', phone: '', message: '' });
                   }}
                   className="flex-1 bg-zinc-700/50 hover:bg-zinc-600/50 border border-zinc-600/50 text-white font-medium h-12 rounded-lg transition-all duration-200"
                 >

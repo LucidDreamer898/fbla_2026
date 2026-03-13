@@ -19,7 +19,7 @@ export default function HomePage() {
           </h1>
 
           {/* Subheading */}
-          <p className="text-muted text-base sm:text-lg md:text-xl leading-relaxed px-4" style={{ marginBottom: '40px', textAlign: 'center', maxWidth: '32rem', marginLeft: 'auto', marginRight: 'auto' }}>
+          <p className="text-muted text-sm sm:text-base md:text-lg leading-relaxed px-4 whitespace-nowrap" style={{ marginBottom: '40px', textAlign: 'center' }}>
             A faster way to reconnect students with their belongings.
           </p>
 

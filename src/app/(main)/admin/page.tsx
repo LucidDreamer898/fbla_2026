@@ -96,7 +96,7 @@ export default function AdminPage() {
   } | undefined;
   const adminJoinCode = metadata?.adminJoinCode;
   const studentJoinCode = metadata?.studentJoinCode;
-  
+
   // Debug: Log metadata to console
   useEffect(() => {
     if (organization) {
@@ -134,12 +134,37 @@ export default function AdminPage() {
 
         if (statsResult.success) {
           setAdminStats(statsResult.stats);
+          
+          // Automatically seed filler items if school has no items
+          if (statsResult.stats.totalItems === 0) {
+            try {
+              const seedResponse = await fetch('/api/seed-filler-items');
+              const seedData = await seedResponse.json();
+              if (seedData.success && seedData.totalSeeded > 0) {
+                console.log(`[AdminPage] Auto-seeded ${seedData.totalSeeded} filler items`);
+                // Refresh data after seeding
+                const [refreshItemsResult, refreshStatsResult] = await Promise.all([
+                  listPendingItems(),
+                  getAdminStats(),
+                ]);
+                if (refreshItemsResult.success) {
+                  setPendingItems(refreshItemsResult.items);
+                }
+                if (refreshStatsResult.success) {
+                  setAdminStats(refreshStatsResult.stats);
+                }
+              }
+            } catch (seedError) {
+              console.error('[AdminPage] Error auto-seeding items:', seedError);
+              // Don't show error to user - seeding is optional
+            }
+          }
         }
       } catch (err: any) {
         console.error('Error fetching admin data:', err);
         setError(err.message || 'Failed to load admin data.');
       } finally {
-        setLoading(false);
+      setLoading(false);
       }
     };
 
@@ -207,7 +232,7 @@ export default function AdminPage() {
     try {
       const result = await approveItem(itemId);
       if (result.success) {
-        setPendingItems(prev => prev.filter(item => item.id !== itemId));
+      setPendingItems(prev => prev.filter(item => item.id !== itemId));
       } else {
         alert(`Error: ${result.error}`);
       }
@@ -224,7 +249,7 @@ export default function AdminPage() {
     try {
       const result = await archiveItem(itemId);
       if (result.success) {
-        setPendingItems(prev => prev.filter(item => item.id !== itemId));
+      setPendingItems(prev => prev.filter(item => item.id !== itemId));
       } else {
         alert(`Error: ${result.error}`);
       }
@@ -259,7 +284,7 @@ export default function AdminPage() {
     try {
       const result = await approveClaim(claimId);
       if (result.success) {
-        setClaimRequests(prev => prev.filter(claim => claim.id !== claimId));
+      setClaimRequests(prev => prev.filter(claim => claim.id !== claimId));
       } else {
         alert(`Error: ${result.error}`);
       }
@@ -276,7 +301,7 @@ export default function AdminPage() {
     try {
       const result = await denyClaim(claimId);
       if (result.success) {
-        setClaimRequests(prev => prev.filter(claim => claim.id !== claimId));
+      setClaimRequests(prev => prev.filter(claim => claim.id !== claimId));
       } else {
         alert(`Error: ${result.error}`);
       }
@@ -314,9 +339,9 @@ export default function AdminPage() {
   }
 
   if (error) {
-    return (
-      <div className="min-h-screen bg-black text-white">
-        <div className="px-6 py-16">
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <div className="px-6 py-16">
           <div className="flex justify-center">
             <div className="w-full max-w-7xl">
               <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6">
@@ -522,7 +547,7 @@ export default function AdminPage() {
                             <div className="flex flex-wrap gap-2 mb-4">
                               <span className="px-3 py-1 bg-gradient-to-r from-zinc-800/50 to-zinc-700/50 text-gray-300 text-xs font-medium rounded-md border border-zinc-600/30">
                                 Color: {item.color}
-                              </span>
+                                </span>
                             </div>
                           )}
 
@@ -568,8 +593,8 @@ export default function AdminPage() {
                                         </div>
                                       )}
                                     </div>
-                                  ))}
-                                </div>
+                              ))}
+                            </div>
                               ) : (
                                 <p className="text-sm text-gray-400">No events found</p>
                               )}
@@ -580,57 +605,57 @@ export default function AdminPage() {
                       
                       <div className="flex flex-col gap-2 pt-4 border-t border-zinc-700/30">
                         <div className="flex gap-2">
-                          <button
-                            onClick={() => handleApprove(item.id)}
+                        <button
+                          onClick={() => handleApprove(item.id)}
                             disabled={processingItem === item.id}
-                            className="flex-1 relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 text-sm"
+                          className="flex-1 relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 text-sm"
+                          style={{ 
+                            background: 'linear-gradient(135deg, #4ade80, #22c55e)',
+                            padding: '1px',
+                          }}
+                        >
+                          <span 
+                            className="w-full h-full flex items-center justify-center gap-2"
                             style={{ 
-                              background: 'linear-gradient(135deg, #4ade80, #22c55e)',
-                              padding: '1px',
+                              backgroundColor: '#0b0b0c',
+                              borderRadius: '7px',
                             }}
                           >
-                            <span 
-                              className="w-full h-full flex items-center justify-center gap-2"
-                              style={{ 
-                                backgroundColor: '#0b0b0c',
-                                borderRadius: '7px',
-                              }}
-                            >
                               {processingItem === item.id ? (
                                 <div className="w-4 h-4 border-2 border-emerald-200 border-t-transparent rounded-full animate-spin"></div>
                               ) : (
                                 <>
-                                  <svg className="w-4 h-4 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                  Approve
+                            <svg className="w-4 h-4 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Approve
                                 </>
                               )}
-                            </span>
-                          </button>
-                          <button
+                          </span>
+                        </button>
+                        <button
                             onClick={() => handleArchive(item.id)}
                             disabled={processingItem === item.id}
-                            className="flex-1 relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 text-sm"
+                          className="flex-1 relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 text-sm"
+                          style={{ 
+                            background: 'linear-gradient(135deg, #f87171, #ef4444)',
+                            padding: '1px',
+                          }}
+                        >
+                          <span 
+                            className="w-full h-full flex items-center justify-center gap-2"
                             style={{ 
-                              background: 'linear-gradient(135deg, #f87171, #ef4444)',
-                              padding: '1px',
+                              backgroundColor: '#0b0b0c',
+                              borderRadius: '7px',
                             }}
                           >
-                            <span 
-                              className="w-full h-full flex items-center justify-center gap-2"
-                              style={{ 
-                                backgroundColor: '#0b0b0c',
-                                borderRadius: '7px',
-                              }}
-                            >
                               {processingItem === item.id ? (
                                 <div className="w-4 h-4 border-2 border-red-200 border-t-transparent rounded-full animate-spin"></div>
                               ) : (
                                 <>
-                                  <svg className="w-4 h-4 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
+                            <svg className="w-4 h-4 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                                   Archive
                                 </>
                               )}
@@ -702,7 +727,7 @@ export default function AdminPage() {
                   ))}
                 </div>
               </div>
-              )
+            )
             ) : activeTab === 'claims' ? (
               claimRequests.length === 0 ? (
                 <div className="text-center py-20">
@@ -809,10 +834,10 @@ export default function AdminPage() {
                                 <div className="w-4 h-4 border-2 border-emerald-200 border-t-transparent rounded-full animate-spin"></div>
                               ) : (
                                 <>
-                                  <svg className="w-4 h-4 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                  Approve Claim
+                              <svg className="w-4 h-4 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Approve Claim
                                 </>
                               )}
                             </span>
@@ -837,9 +862,9 @@ export default function AdminPage() {
                                 <div className="w-4 h-4 border-2 border-red-200 border-t-transparent rounded-full animate-spin"></div>
                               ) : (
                                 <>
-                                  <svg className="w-4 h-4 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
+                              <svg className="w-4 h-4 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
                                   Deny Claim
                                 </>
                               )}
@@ -914,7 +939,7 @@ export default function AdminPage() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                               </svg>
                             </button>
-                          </div>
+          </div>
                           <p className="text-lg sm:text-xl font-bold font-mono mb-2 tracking-wider text-center" style={{ color: '#93c5fd' }}>
                             {studentJoinCode ? String(studentJoinCode) : 'Not available'}
                           </p>

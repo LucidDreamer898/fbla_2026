@@ -12,6 +12,7 @@ import { clerkClient } from '@clerk/nextjs/server';
 import { createHash } from 'crypto';
 import { getSupabaseAdmin } from '../supabase/server';
 import { revalidatePath } from 'next/cache';
+import { seedFillerItemsForSchool } from '../admin/seedFillerItems';
 
 /**
  * Generate a readable join code (8-10 characters, easy to read)
@@ -451,6 +452,20 @@ export async function createSchool(data: {
       console.error('Error creating audit event:', error);
     }
 
+    // Automatically seed filler items for the new school
+    try {
+      const seedResult = await seedFillerItemsForSchool(schoolData.id, userId);
+      if (seedResult.success) {
+        console.log(`[createSchool] Seeded ${seedResult.count} filler items for school ${schoolData.id}`);
+      } else {
+        console.error(`[createSchool] Failed to seed filler items: ${seedResult.error}`);
+        // Don't fail the whole operation - school creation succeeded
+      }
+    } catch (seedError: unknown) {
+      console.error('[createSchool] Error seeding filler items:', seedError);
+      // Don't fail the whole operation - school creation succeeded
+    }
+
     // Log to terminal
     console.log('DATABASE: createSchool', {
       organizationId: org.id,
@@ -464,6 +479,8 @@ export async function createSchool(data: {
     // Revalidate relevant paths
     revalidatePath('/onboarding');
     revalidatePath('/');
+    revalidatePath('/items');
+    revalidatePath('/admin');
 
     // Return organization ID and plaintext codes (shown once, never stored)
     return {

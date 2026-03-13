@@ -1,13 +1,14 @@
 import type { Metadata } from 'next';
+import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Lost. Found. Returned. — School Lost & Found',
   description: 'Report found items, browse lost belongings, and get them back—fast.',
   keywords: ['lost and found', 'school', 'belongings', 'items', 'recovery'],
-  authors: [{ name: 'Lost&Found Team' }],
-  creator: 'Lost&Found',
-  publisher: 'Lost&Found',
+  authors: [{ name: 'Reclaim Team' }],
+  creator: 'Reclaim',
+  publisher: 'Reclaim',
   formatDetection: {
     email: false,
     address: false,
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
     title: 'Lost. Found. Returned. — School Lost & Found',
     description: 'Report found items, browse lost belongings, and get them back—fast.',
     url: 'https://lostfound.app',
-    siteName: 'Lost&Found',
+    siteName: 'Reclaim',
     locale: 'en_US',
     type: 'website',
   },
@@ -44,103 +45,84 @@ export const metadata: Metadata = {
   },
 };
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased" suppressHydrationWarning={true}>
-        <div className="bg-background min-h-screen">
-          {/* Skip to content link for accessibility */}
-          <a href="#main-content" className="skip-to-content">
-            Skip to main content
-          </a>
-
-          {/* Navigation */}
-          <nav className="bg-background/95 supports-[backdrop-filter]:bg-background/60 backdrop-blur">
-            <div className="container mx-auto" style={{ paddingLeft: '2rem', paddingRight: '2rem' }}>
-              <div className="flex h-16 items-center justify-between relative">
-                {/* Logo */}
-                <div className="flex items-center" style={{ position: 'fixed', left: '2rem', top: '1rem', zIndex: 10 }}>
-                  <Link
-                    href="/"
-                    className="text-foreground hover:text-primary focus-visible:ring-primary rounded-lg text-xl font-bold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                  >
-                    Lost&Found
-                  </Link>
-                </div>
-
-                {/* Navigation Links */}
-                <div className="hidden items-center md:flex" style={{ gap: '2rem', marginLeft: '4rem', marginRight: 'auto', zIndex: 20 }}>
-                  <Link
-                    href="/"
-                    className="text-foreground hover:text-primary focus-visible:ring-primary rounded-lg px-2 py-1 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                  >
-                    Home
-                  </Link>
-                  <Link
-                    href="/items"
-                    className="text-foreground hover:text-primary focus-visible:ring-primary rounded-lg px-2 py-1 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                  >
-                    Browse
-                  </Link>
-                  <Link
-                    href="/report"
-                    className="text-foreground hover:text-primary focus-visible:ring-primary rounded-lg px-2 py-1 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                  >
-                    Report
-                  </Link>
-                  <Link
-                    href="/admin"
-                    className="text-foreground hover:text-primary focus-visible:ring-primary rounded-lg px-2 py-1 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                  >
-                    Admin
-                  </Link>
-                </div>
-
-                {/* Auth Buttons */}
-                <div className="flex items-center" style={{ gap: '1.5rem', position: 'fixed', right: '2rem', top: '1rem', zIndex: 10 }}>
-                  <Button variant="ghost" size="sm">
-                    Log In
-                  </Button>
-                  <Button variant="solid" size="sm">
-                    Sign Up
-                  </Button>
-                </div>
-
-                {/* Mobile menu button */}
-                <div className="md:hidden">
-                  <Button variant="ghost" size="sm" aria-label="Open menu">
-                    <svg
-                      className="h-6 w-6"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 6h16M4 12h16M4 18h16"
-                      />
-                    </svg>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </nav>
-
-          {/* Main Content */}
-          <main id="main-content" className="flex-1">
-            {children}
-          </main>
-        </div>
-      </body>
-    </html>
+    <ClerkProvider
+      signInForceRedirectUrl="/onboarding"
+      signUpForceRedirectUrl="/onboarding"
+      afterSignOutUrl="/"
+      appearance={{
+        variables: {
+          colorPrimary: '#a855f7',
+          colorTextOnPrimaryBackground: '#ffffff',
+          colorBackground: '#ffffff',
+          colorInputBackground: '#ffffff',
+          colorInputText: '#1f2937',
+          colorText: '#1f2937',
+          colorTextSecondary: '#6b7280',
+          colorDanger: '#ef4444',
+          borderRadius: '0.5rem',
+        },
+        elements: {
+          // Hide Clerk's default organization-related UI
+          organizationSwitcherTrigger: { display: 'none' },
+          organizationSwitcherPopoverCard: { display: 'none' },
+          organizationPreview: { display: 'none' },
+          organizationList: { display: 'none' },
+          // Card styling - light theme
+          card: 'bg-white border border-gray-200 shadow-2xl',
+          // Header text - dark for light theme
+          headerTitle: 'text-gray-900 text-2xl font-bold',
+          headerSubtitle: 'text-gray-600',
+          // Form fields - light theme
+          formFieldInput:
+            'bg-white border-gray-300 text-gray-900 placeholder:text-gray-500 focus:border-purple-500 focus:ring-purple-500/20',
+          formFieldLabel: 'text-gray-700',
+          // OTP code fields
+          otpCodeFieldInput:
+            'bg-white border-gray-300 text-gray-900 focus:border-purple-500 focus:ring-purple-500/20',
+          // Primary button with gradient
+          formButtonPrimary:
+            'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg shadow-purple-500/25 transition-all',
+          // Links
+          footerActionLink: 'text-purple-600 hover:text-purple-700',
+          identityPreviewEditButton: 'text-purple-600 hover:text-purple-700',
+          formResendCodeLink: 'text-purple-600 hover:text-purple-700',
+          // Footer text
+          footerAction: 'text-gray-600',
+          footerPages: 'text-gray-600',
+          footerPagesLink: 'text-purple-600 hover:text-purple-700',
+          footerBrandingText: 'text-gray-600',
+          footerBrandingLink: 'text-purple-600 hover:text-purple-700',
+          // Alerts and errors
+          alertText: 'text-gray-700',
+          formFieldErrorText: 'text-red-600',
+          // Dividers
+          dividerLine: 'bg-gray-300',
+          dividerText: 'text-gray-600',
+          // Social buttons - border only (outline style), not filled
+          socialButtonsBlockButton:
+            'bg-transparent border border-gray-300 text-gray-900 hover:bg-gray-50 hover:border-gray-400 transition-all',
+          socialButtonsBlockButtonText: 'text-gray-900 font-medium',
+          socialButtonsBlockButtonArrow: 'text-gray-900',
+          socialButtonsBlockButton__google:
+            'bg-transparent border border-gray-300 text-gray-900 hover:bg-gray-50 hover:border-gray-400',
+          socialButtonsBlockButton__apple:
+            'bg-transparent border border-gray-300 text-gray-900 hover:bg-gray-50 hover:border-gray-400',
+          socialButtonsBlockButton__facebook:
+            'bg-transparent border border-gray-300 text-gray-900 hover:bg-gray-50 hover:border-gray-400',
+        },
+      }}
+    >
+      <html lang="en">
+        <body className="antialiased" suppressHydrationWarning={true}>
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

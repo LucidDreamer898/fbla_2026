@@ -3,17 +3,17 @@ import ReportItemForm from '@/components/forms/ReportItemForm';
 export default function ReportPage() {
   return (
     <div className="min-h-screen bg-black text-white">
-        <div className="px-6 py-16">
+        <div className="px-4 sm:px-6 py-8 sm:py-16">
           {/* Enhanced Header */}
-          <div className="mb-16 text-center relative">
+          <div className="mb-8 sm:mb-16 text-center relative">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 blur-3xl -z-10"></div>
             <div className="relative">
-              <h1 className="text-6xl font-bold tracking-tight mb-6">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6">
                 <span className="bg-gradient-to-r from-[#a855f7] to-[#ec4899] bg-clip-text text-transparent">
                 Report an Item
                 </span>
               </h1>
-              <p className="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
+              <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed px-4">
                 Help reunite lost items with their owners by providing detailed information below
               </p>
             </div>
@@ -22,7 +22,7 @@ export default function ReportPage() {
           {/* Main Content Layout */}
           <div className="flex justify-center">
             <div className="w-full max-w-7xl">
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-12">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8 lg:gap-12">
                 {/* Form Section */}
                 <div className="xl:col-span-2">
                   <div className="relative">

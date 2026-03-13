@@ -136,7 +136,6 @@ body {
   }
 }
 
-
 @keyframes grid-move {
   0% {
     transform: translate(0, 0);
@@ -242,23 +241,22 @@ body {
   background-size: 50px 50px;
 }
 
+/* Fade in up animation */
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-    /* Fade in up animation */
-    @keyframes fade-in-up {
-      0% {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      100% {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .animate-fade-in-up {
-      animation: fade-in-up 0.6s ease-out forwards;
-      opacity: 0;
-    }
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+  opacity: 0;
+}
 
 /* Success checkmark animation */
 @keyframes checkmark-draw {
@@ -282,27 +280,38 @@ body {
   }
 }
 
-@keyframes fade-in-up {
-  0% {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .animate-checkmark {
   animation: checkmark-scale 0.6s ease-out;
-}
-
-.animate-fade-in-up {
-  animation: fade-in-up 0.6s ease-out forwards;
 }
 
 .animate-checkmark path {
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
   animation: checkmark-draw 0.8s ease-out 0.3s forwards;
+}
+
+/* Hide Clerk's default organization creation / selection screens */
+[data-clerk-element="organizationSwitcher"],
+[data-clerk-element="organizationProfile"],
+[data-clerk-element="createOrganization"],
+[data-clerk-element="organizationList"],
+.cl-organizationSwitcher,
+.cl-organizationProfile,
+.cl-createOrganization,
+.cl-organizationList,
+.cl-organizationSwitcher-root,
+.cl-organizationList-root,
+[class*="organizationSwitcher"],
+[class*="organizationProfile"],
+[class*="createOrganization"],
+[class*="organizationList"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  z-index: -9999 !important;
 }

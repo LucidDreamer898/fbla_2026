@@ -1,40 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { FirestoreItem } from '@/types/item';
-// TODO: Import your database function when implemented
-// import { getItemById } from '@/lib/your-database-service';
+import { getItem } from '@/lib/items/queries';
+import { submitClaim, getUserClaims } from '@/lib/claims/actions';
 
-/**
- * Database Integration Notes:
- * 
- * When implementing the database:
- * 1. Import your database function: import { getItemById } from '@/lib/your-database-service';
- * 2. Replace the mock data in fetchItem() with: const itemData = await getItemById(itemId);
- * 3. Remove the getMockItem() function and mock data
- * 4. Ensure your FirestoreItem type matches the database schema
- * 5. The component is already set up to handle:
- *    - Date objects or objects with .toDate() method
- *    - Missing/null fields with fallbacks
- *    - Broken image URLs with error handling
- *    - Empty or malformed photo arrays
- *    - Null/undefined/empty string images (shows "No image available")
- *    - Various item statuses (approved, pending, claimed)
- * 
- * Image Handling:
- * - If photos array is empty/null/undefined → shows "No image available"
- * - If imageUrl is empty/null/undefined → shows "No image available"
- * - If photos array has valid URLs → shows gallery with thumbnails
- * - If only imageUrl exists → shows single image
- * - Broken image URLs are hidden gracefully with onError handlers
- */
 
 export default function ItemDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const { user } = useUser();
   const itemId = params.id as string;
   const [item, setItem] = useState<FirestoreItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,190 +25,108 @@ export default function ItemDetailPage() {
     name: '',
     email: '',
     phone: '',
+    message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [claimStatus, setClaimStatus] = useState<{
+    status: 'pending' | 'approved' | 'denied';
+    created_at: string;
+    reviewed_at: string | null;
+  } | null>(null);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
-  // Mock items data for demo - simulating different items based on ID
-  const getMockItem = (id: string): FirestoreItem => {
-    const items: { [key: string]: FirestoreItem } = {
-      '1': {
-        id: '1',
-        title: 'Black North Face Jacket',
-        description: 'Found a black waterproof jacket with zipper pockets in the library. The jacket appears to be in excellent condition with no visible damage. It was left on a chair near the study area.',
-        category: 'Clothing',
-        location: 'Library - 2nd Floor',
-        dateFound: { toDate: () => new Date('2024-01-15') } as any,
-        status: 'approved',
-        photos: [
-          'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=500&h=500&fit=crop',
-          'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=500&h=500&fit=crop'
-        ],
-        reportedBy: 'library_staff',
-        createdAt: { toDate: () => new Date('2024-01-15') } as any,
-        updatedAt: { toDate: () => new Date('2024-01-15') } as any,
-        tags: ['jacket', 'black', 'north face', 'waterproof', 'zipper'],
-        imageUrl: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&h=600&fit=crop'
-      },
-      '2': {
-        id: '2',
-        title: 'MacBook Pro Charger',
-        description: 'Found a white MagSafe charger for MacBook Pro in the cafeteria. The charger appears to be in good working condition with no visible damage to the cable or connector.',
-        category: 'Electronics',
-        location: 'Cafeteria',
-        dateFound: { toDate: () => new Date('2024-01-14') } as any,
-        status: 'approved',
-        photos: [
-          'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=500&h=500&fit=crop'
-        ],
-        reportedBy: 'cafeteria_staff',
-        createdAt: { toDate: () => new Date('2024-01-14') } as any,
-        updatedAt: { toDate: () => new Date('2024-01-14') } as any,
-        tags: ['charger', 'macbook', 'white', 'magsafe', 'electronics'],
-        imageUrl: 'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=800&h=600&fit=crop'
-      },
-      '3': {
-        id: '3',
-        title: 'Blue Backpack',
-        description: 'Found a navy blue backpack with laptop compartment in the gym locker room. The backpack appears to be in good condition with multiple compartments and zippers working properly.',
-        category: 'Accessories',
-        location: 'Gym Locker Room',
-        dateFound: { toDate: () => new Date('2024-01-13') } as any,
-        status: 'claimed',
-        photos: [
-          'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&h=500&fit=crop',
-          'https://images.unsplash.com/photo-1546938576-6e6a64f317cc?w=500&h=500&fit=crop'
-        ],
-        reportedBy: 'gym_staff',
-        createdAt: { toDate: () => new Date('2024-01-13') } as any,
-        updatedAt: { toDate: () => new Date('2024-01-13') } as any,
-        tags: ['backpack', 'blue', 'laptop', 'navy', 'gym'],
-        imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&h=600&fit=crop'
-      },
-      '4': {
-        id: '4',
-        title: 'Calculus Textbook',
-        description: 'Found a Stewart Calculus 8th Edition textbook in the math building. The book appears to be in good condition with some highlighting and notes in the margins.',
-        category: 'Books',
-        location: 'Math Building - Room 201',
-        dateFound: { toDate: () => new Date('2024-01-12') } as any,
-        status: 'approved',
-        photos: [],
-        reportedBy: 'professor_smith',
-        createdAt: { toDate: () => new Date('2024-01-12') } as any,
-        updatedAt: { toDate: () => new Date('2024-01-12') } as any,
-        tags: ['textbook', 'calculus', 'math', 'stewart', 'education']
-      },
-      '5': {
-        id: '5',
-        title: 'AirPods Case',
-        description: 'Found a white AirPods charging case in the student center. The case appears to be in good condition and was left on a table near the food court.',
-        category: 'Electronics',
-        location: 'Student Center',
-        dateFound: { toDate: () => new Date('2024-01-11') } as any,
-        status: 'approved',
-        photos: [
-          'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=500&h=500&fit=crop'
-        ],
-        reportedBy: 'cafeteria_staff',
-        createdAt: { toDate: () => new Date('2024-01-11') } as any,
-        updatedAt: { toDate: () => new Date('2024-01-11') } as any,
-        tags: ['airpods', 'case', 'white', 'electronics', 'charging'],
-        imageUrl: 'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=800&h=600&fit=crop'
-      },
-      '6': {
-        id: '6',
-        title: 'Red Water Bottle',
-        description: 'Found a stainless steel water bottle with logo at the track field. The bottle appears to be in good condition with no dents or scratches.',
-        category: 'Other',
-        location: 'Track Field',
-        dateFound: { toDate: () => new Date('2024-01-10') } as any,
-        status: 'approved',
-        photos: [
-          'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&h=500&fit=crop'
-        ],
-        reportedBy: 'track_coach',
-        createdAt: { toDate: () => new Date('2024-01-10') } as any,
-        updatedAt: { toDate: () => new Date('2024-01-10') } as any,
-        tags: ['water bottle', 'red', 'stainless', 'track', 'sports'],
-        imageUrl: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=800&h=600&fit=crop'
-      },
-      '7': {
-        id: '7',
-        title: 'iPhone 13',
-        description: 'Found a black iPhone 13 with clear case in the computer lab. The phone appears to be in excellent condition with no visible damage.',
-        category: 'Electronics',
-        location: 'Computer Lab',
-        dateFound: { toDate: () => new Date('2024-01-09') } as any,
-        status: 'pending',
-        photos: [
-          'https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=500&h=500&fit=crop'
-        ],
-        reportedBy: 'lab_assistant',
-        createdAt: { toDate: () => new Date('2024-01-09') } as any,
-        updatedAt: { toDate: () => new Date('2024-01-09') } as any,
-        tags: ['iphone', 'phone', 'black', 'electronics', 'clear case'],
-        imageUrl: 'https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop'
-      },
-      '8': {
-        id: '8',
-        title: 'Nike Running Shoes',
-        description: 'Found a pair of Nike running shoes at the basketball court. The shoes appear to be in good condition with minimal wear.',
-        category: 'Clothing',
-        location: 'Basketball Court',
-        dateFound: { toDate: () => new Date('2024-01-08') } as any,
-        status: 'approved',
-        photos: [
-          'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&h=500&fit=crop'
-        ],
-        reportedBy: 'court_supervisor',
-        createdAt: { toDate: () => new Date('2024-01-08') } as any,
-        updatedAt: { toDate: () => new Date('2024-01-08') } as any,
-        tags: ['shoes', 'nike', 'running', 'basketball', 'sports'],
-        imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop'
-      }
-    };
+  // Helper to convert database item to FirestoreItem format
+  const convertDbItemToFirestoreItem = (dbItem: {
+    id: string;
+    title: string;
+    description: string | null;
+    category: string;
+    color: string | null;
+    location_found: string;
+    date_found: string;
+    photo_url: string | null;
+    status: 'pending' | 'approved' | 'archived';
+    created_at: string;
+    created_by: string;
+  }): FirestoreItem => {
+    const dateFound = new Date(dbItem.date_found);
+    const createdAt = new Date(dbItem.created_at);
     
-    return items[id] || items['1']; // Default to first item if ID not found
+    return {
+      id: dbItem.id,
+      title: dbItem.title,
+      description: dbItem.description || '',
+      category: dbItem.category,
+      location: dbItem.location_found,
+      dateFound: dateFound,
+      status: dbItem.status === 'approved' ? 'approved' : 
+              dbItem.status === 'pending' ? 'pending' : 
+              'approved',
+      photos: dbItem.photo_url ? [dbItem.photo_url] : [],
+      reportedBy: dbItem.created_by,
+      createdAt: createdAt,
+      updatedAt: createdAt,
+      tags: dbItem.color ? [dbItem.color] : [],
+      imageUrl: dbItem.photo_url || undefined,
+    };
   };
 
   useEffect(() => {
     const fetchItem = async () => {
+      if (!itemId) {
+        setError('Item ID is required');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
         
-        // TODO: Replace with real database call when implemented
-        console.log('DATABASE:', {
-          operation: 'getItemById',
-          data: { itemId },
-        });
-        console.log('DATABASE: getItemById', { itemId });
-        // Log to terminal
-        fetch('/api/log', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ operation: 'getItemById', data: { itemId } }),
-        }).catch(() => {});
-        // const itemData = await getItemById(itemId);
-        // setItem(itemData);
+        const result = await getItem(itemId);
         
-        // Mock data for now
-        setTimeout(() => {
-          setItem(getMockItem(itemId));
-          setLoading(false);
-        }, 1000);
-        
-      } catch (err) {
+        if (result.success) {
+          const firestoreItem = convertDbItemToFirestoreItem(result.item);
+          setItem(firestoreItem);
+        } else {
+          setError(result.error);
+        }
+      } catch (err: any) {
         console.error('Error fetching item:', err);
-        setError('Failed to load item details');
+        setError(err.message || 'Failed to load item details');
+      } finally {
         setLoading(false);
       }
     };
 
-    if (itemId) {
-      fetchItem();
-    }
+    fetchItem();
   }, [itemId]);
+
+  // Fetch user's claim status for this item
+  useEffect(() => {
+    const fetchClaimStatus = async () => {
+      if (!user || !itemId) return;
+
+      try {
+        const result = await getUserClaims();
+        if (result.success) {
+          const itemClaim = result.claims.find(c => c.itemId === itemId);
+          if (itemClaim) {
+            setClaimStatus({
+              status: itemClaim.status,
+              created_at: itemClaim.created_at,
+              reviewed_at: itemClaim.reviewed_at,
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching claim status:', err);
+        // Don't show error to user, just silently fail
+      }
+    };
+
+    fetchClaimStatus();
+  }, [user, itemId]);
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'Unknown';
@@ -316,17 +214,17 @@ export default function ItemDetailPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="px-6 py-16">
+      <div className="px-4 sm:px-6 py-8 sm:py-16">
         {/* Header */}
-        <div className="mb-12 text-center relative">
+        <div className="mb-8 sm:mb-12 text-center relative">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 blur-3xl -z-10"></div>
           <div className="relative">
-            <h1 className="text-6xl font-bold tracking-tight mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6">
               <span className="bg-gradient-to-r from-[#a855f7] to-[#ec4899] bg-clip-text text-transparent">
                 Item Details
               </span>
             </h1>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed px-4">
               View detailed information and photos of this found item
             </p>
           </div>
@@ -335,7 +233,7 @@ export default function ItemDetailPage() {
         {/* Main Content */}
         <div className="flex justify-center">
           <div className="w-full max-w-7xl">
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8">
               
               {/* Image Section */}
               <div className="lg:col-span-3 flex flex-col">
@@ -420,8 +318,8 @@ export default function ItemDetailPage() {
               {/* Details Section */}
               <div className="lg:col-span-2 space-y-6">
                 {/* Status and Category Badges */}
-                <div className="flex items-center gap-4 mb-6">
-                  <div className={`px-5 py-2.5 rounded-full text-sm font-bold border-2 shadow-xl backdrop-blur-lg ${
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold border-2 shadow-xl backdrop-blur-lg ${
                     item.status === 'approved' 
                       ? 'bg-emerald-500/90 text-white border-emerald-400/60'
                       : item.status === 'pending'
@@ -434,33 +332,33 @@ export default function ItemDetailPage() {
                      item.status === 'pending' ? 'Pending' : 
                      item.status === 'claimed' ? 'Claimed' : 'Under Review'}
                   </div>
-                  <div className="px-5 py-2.5 bg-zinc-800/90 backdrop-blur-md text-sm font-bold text-white rounded-full border-2 border-zinc-600/60 shadow-xl">
+                  <div className="px-3 sm:px-5 py-2 sm:py-2.5 bg-zinc-800/90 backdrop-blur-md text-xs sm:text-sm font-bold text-white rounded-full border-2 border-zinc-600/60 shadow-xl">
                     {item.category || 'Uncategorized'}
                   </div>
                 </div>
 
                 {/* Title */}
-                <div className="mb-8">
-                  <h2 className="text-4xl font-bold text-white mb-6 leading-tight">{item.title || 'Untitled Item'}</h2>
+                <div className="mb-6 sm:mb-8">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 sm:mb-6 leading-tight">{item.title || 'Untitled Item'}</h2>
                   <div className="h-1 bg-gradient-to-r from-purple-500/40 via-pink-500/40 to-purple-500/40 rounded-full mb-2"></div>
                   <div className="h-0.5 bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-pink-500/20 rounded-full"></div>
                 </div>
 
                 {/* Description */}
-                <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-6 backdrop-blur-md mb-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-4 sm:p-6 backdrop-blur-md mb-6 sm:mb-8">
+                  <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center">
+                      <svg className="w-3 h-3 sm:w-4 sm:h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-semibold text-white">Description</h3>
+                    <h3 className="text-base sm:text-lg font-semibold text-white">Description</h3>
                   </div>
-                  <p className="text-gray-300 leading-relaxed">{item.description || 'No description available.'}</p>
+                  <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{item.description || 'No description available.'}</p>
                 </div>
 
                 {/* Details Grid */}
-                <div className="grid grid-cols-1 gap-4 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 sm:mb-8">
                   {/* Location */}
                   <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-4 backdrop-blur-md">
                     <div className="flex items-center gap-3">
@@ -517,6 +415,55 @@ export default function ItemDetailPage() {
                   </div>
                 )}
 
+                {/* Claim Status */}
+                {claimStatus && (
+                  <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-xl p-6 backdrop-blur-md mb-8">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center">
+                        <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-semibold text-white">Your Claim Status</h3>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <span className={`px-4 py-2 rounded-full text-sm font-bold ${
+                          claimStatus.status === 'approved'
+                            ? 'bg-emerald-500/90 text-white'
+                            : claimStatus.status === 'denied'
+                            ? 'bg-red-500/90 text-white'
+                            : 'bg-purple-500/90 text-white'
+                        }`}>
+                          {claimStatus.status === 'approved' ? 'Approved' : 
+                           claimStatus.status === 'denied' ? 'Denied' : 
+                           'Pending Review'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-400">
+                        Submitted: {new Date(claimStatus.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                      {claimStatus.reviewed_at && (
+                        <p className="text-sm text-gray-400">
+                          Reviewed: {new Date(claimStatus.reviewed_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex gap-4 pt-4">
                   <Link 
@@ -525,12 +472,20 @@ export default function ItemDetailPage() {
                   >
                     Back to Browse
                   </Link>
-                  <Button 
-                    onClick={() => setIsClaimModalOpen(true)}
-                    className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium h-12 rounded-lg transition-all duration-200"
-                  >
-                    Claim This Item
-                  </Button>
+                  {!claimStatus || claimStatus.status === 'denied' ? (
+                    <Button 
+                      onClick={() => setIsClaimModalOpen(true)}
+                      className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium h-12 rounded-lg transition-all duration-200"
+                    >
+                      {claimStatus?.status === 'denied' ? 'Submit New Claim' : 'Claim This Item'}
+                    </Button>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                      {claimStatus.status === 'approved' 
+                        ? '✅ Your claim has been approved!' 
+                        : '⏳ Your claim is pending review'}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -566,52 +521,54 @@ export default function ItemDetailPage() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 setIsSubmitting(true);
+                setClaimError(null);
                 
-                // TODO: Implement actual claim submission
-                const submittedAt = new Date();
-                const claimData = {
-                  itemId: item?.id,
-                  name: claimForm.name,
-                  email: claimForm.email,
-                  phone: claimForm.phone,
-                  submittedAt: submittedAt.toISOString(),
-                  submittedAtFormatted: submittedAt.toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'numeric',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: true,
-                  }),
-                };
-                
-                console.log('DATABASE:', {
-                  operation: 'submitClaim',
-                  data: claimData,
-                });
-                console.log('DATABASE: submitClaim', claimData);
-                // Log to terminal
-                fetch('/api/log', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ operation: 'submitClaim', data: claimData }),
-                }).catch(() => {});
-                
-                // await submitClaim(claimData);
-                
-                // Simulate API call
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                setIsSubmitting(false);
-                setIsClaimModalOpen(false);
-                setClaimForm({ name: '', email: '', phone: '' });
-                
-                // TODO: Show success message
-                alert('Your claim request has been submitted! We will contact you soon.');
+                if (!itemId) {
+                  setClaimError('Item ID is required');
+                  setIsSubmitting(false);
+                  return;
+                }
+
+                try {
+                  // Store contact info in proof_answers
+                  const proofAnswers = {
+                    name: claimForm.name,
+                    email: claimForm.email,
+                    phone: claimForm.phone,
+                  };
+
+                  const result = await submitClaim(
+                    itemId,
+                    claimForm.message || null,
+                    proofAnswers
+                  );
+
+                  if (result.success) {
+                    // Success - close modal and refresh
+                    setIsClaimModalOpen(false);
+                    setClaimForm({ name: '', email: '', phone: '', message: '' });
+                    // Refresh the page to show updated claim status
+                    router.refresh();
+                    // Show success message
+                    alert('✅ Your claim request has been submitted! We will review it and contact you soon.');
+                  } else {
+                    setClaimError(result.error);
+                  }
+                } catch (err: any) {
+                  console.error('Error submitting claim:', err);
+                  setClaimError(err.message || 'Failed to submit claim. Please try again.');
+                } finally {
+                  setIsSubmitting(false);
+                }
               }}
               className="space-y-4"
             >
+              {/* Error message */}
+              {claimError && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                  <p className="text-red-300 text-sm">{claimError}</p>
+                </div>
+              )}
               <Input
                 label="Full Name"
                 type="text"
@@ -641,6 +598,20 @@ export default function ItemDetailPage() {
                 required
                 className="bg-zinc-900/50 border-zinc-700 text-white"
               />
+
+              <div>
+                <label htmlFor="message" className="block text-sm font-medium text-gray-300 mb-2">
+                  Additional Message (Optional)
+                </label>
+                <textarea
+                  id="message"
+                  value={claimForm.message}
+                  onChange={(e) => setClaimForm({ ...claimForm, message: e.target.value })}
+                  placeholder="Provide any additional information that might help verify your claim..."
+                  rows={4}
+                  className="w-full bg-zinc-900/50 border border-zinc-700 text-white rounded-lg px-4 py-2 placeholder:text-gray-500 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+                />
+              </div>
 
               {/* Buttons */}
               <div className="flex gap-3 pt-4">

@@ -14,6 +14,7 @@ interface Filters {
 interface ItemFiltersProps {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
+  items?: Array<{ category: string }>; // Optional items array for calculating real counts
 }
 
 const categories = [
@@ -40,7 +41,7 @@ const colors = [
   'No Photo'
 ];
 
-export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersProps) {
+export default function ItemFilters({ filters, onFiltersChange, items = [] }: ItemFiltersProps) {
   const [expandedSections, setExpandedSections] = useState({
     category: true,
     date: false,
@@ -90,14 +91,12 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
   };
 
   const getCategoryCount = (category: string) => {
-    const counts: Record<string, number> = {
-      'Electronics': 12,
-      'Clothing': 8,
-      'Accessories': 15,
-      'Books': 5,
-      'Other': 10,
-    };
-    return counts[category] || 0;
+    // Calculate real count from items if available
+    if (items && items.length > 0) {
+      return items.filter(item => item.category === category).length;
+    }
+    // Fallback to 0 if no items provided
+    return 0;
   };
 
   return (
@@ -135,8 +134,8 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
       <div style={{ marginBottom: '24px' }}>
           <div className="relative">
             <svg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-4 h-4" style={{ color: '#8e4ec6' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
           <input
             type="text"
             placeholder="Search items..."
@@ -185,9 +184,9 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" style={{ color: '#8e4ec6' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
+          </svg>
               <span>Category</span>
-            </div>
+        </div>
             <svg
               className={`w-4 h-4 transition-transform duration-200 text-gray-400 ${expandedSections.category ? 'rotate-180' : ''}`}
               fill="none"
@@ -205,7 +204,7 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
               gap: '16px',
               padding: '0 20px 20px 20px'
             }}>
-              {categories.map((category) => (
+          {categories.map((category) => (
                 <label 
                   key={category} 
                   className="flex items-center justify-between cursor-pointer group"
@@ -213,10 +212,10 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
                 >
                   <div className="flex items-center" style={{ gap: '12px' }}>
                     <div className="relative flex items-center justify-center" style={{ width: '16px', height: '16px' }}>
-                      <input
-                        type="checkbox"
-                        checked={filters.categories.includes(category)}
-                        onChange={(e) => handleCategoryChange(category, e.target.checked)}
+              <input
+                type="checkbox"
+                checked={filters.categories.includes(category)}
+                onChange={(e) => handleCategoryChange(category, e.target.checked)}
                         className="w-4 h-4 rounded border focus:ring-offset-0 appearance-none transition-all duration-200"
                         style={{ 
                           margin: 0,
@@ -236,8 +235,8 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
                     </span>
                   </div>
                   <span className="text-sm text-gray-400 font-medium">{getCategoryCount(category)}</span>
-                </label>
-              ))}
+            </label>
+          ))}
             </div>
           )}
         </div>
@@ -264,10 +263,10 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
           >
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" style={{ color: '#ff0080' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
               <span>Date Found</span>
-            </div>
+        </div>
             <svg
               className={`w-4 h-4 transition-transform duration-200 text-gray-400 ${expandedSections.date ? 'rotate-180' : ''}`}
               fill="none"
@@ -286,9 +285,9 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
               padding: '0 16px 16px 16px'
             }}>
               <input
-                id="dateFrom"
-                type="date"
-                value={filters.dateFrom}
+              id="dateFrom"
+              type="date"
+              value={filters.dateFrom}
                 onChange={(e) => handleDateFromChange(e.target.value)}
                 className="w-full border text-white text-sm rounded-md px-3 py-2 transition-all"
                 style={{
@@ -305,9 +304,9 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
                 }}
               />
               <input
-                id="dateTo"
-                type="date"
-                value={filters.dateTo}
+              id="dateTo"
+              type="date"
+              value={filters.dateTo}
                 onChange={(e) => handleDateToChange(e.target.value)}
                 className="w-full border text-white text-sm rounded-md px-3 py-2 transition-all"
                 style={{
@@ -322,8 +321,8 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
                   (e.currentTarget as HTMLElement).style.borderColor = '#2a2a2a';
                   (e.currentTarget as HTMLElement).style.boxShadow = 'none';
                 }}
-              />
-            </div>
+            />
+          </div>
           )}
         </div>
       </div>
@@ -350,9 +349,9 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" style={{ color: '#8e4ec6' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z" />
-              </svg>
+          </svg>
               <span>Colors</span>
-            </div>
+        </div>
             <svg
               className={`w-4 h-4 transition-transform duration-200 text-gray-400 ${expandedSections.colors ? 'rotate-180' : ''}`}
               fill="none"
@@ -373,8 +372,8 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
                     style={{ padding: '4px 0', gap: '8px' }}
                   >
                     <div className="relative flex items-center justify-center" style={{ width: '16px', height: '16px' }}>
-                      <input
-                        type="checkbox"
+          <input
+            type="checkbox"
                         checked={filters.colors.includes(color)}
                         onChange={(e) => handleColorChange(color, e.target.checked)}
                         className="w-4 h-4 rounded border focus:ring-offset-0 appearance-none transition-all duration-200"
@@ -392,7 +391,7 @@ export default function ItemFilters({ filters, onFiltersChange }: ItemFiltersPro
                       )}
                     </div>
                     <span className="text-sm text-gray-300 group-hover:text-white transition-colors">{color}</span>
-                  </label>
+        </label>
                 ))}
               </div>
             </div>

@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { Tag } from '@/components/ui/Tag';
 import { Card } from '@/components/ui/Card';
-import { submitItem } from '@/lib/itemsService';
+import { submitItem } from '@/lib/items/actions';
 import Link from 'next/link';
 
 interface FormData {
@@ -51,6 +51,7 @@ export default function ReportItemForm() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [tagList, setTagList] = useState<string[]>([]);
 
   const validateForm = (): boolean => {
@@ -83,6 +84,9 @@ export default function ReportItemForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Clear previous errors
+    setSubmitError(null);
+    
     if (!validateForm()) {
       return;
     }
@@ -90,25 +94,34 @@ export default function ReportItemForm() {
     setIsSubmitting(true);
     
     try {
-      // Convert FileList to File array
-      const photos = formData.photos ? Array.from(formData.photos) : [];
-      
-      // Submit to Firestore
-      await submitItem({
+      // Get first photo (we only support one photo for now)
+      const photo = formData.photos && formData.photos.length > 0 
+        ? formData.photos[0] 
+        : null;
+
+      // Submit to Supabase
+      const result = await submitItem({
         title: formData.title,
         description: formData.description,
         category: formData.category,
         foundLocation: formData.foundLocation,
         foundDate: formData.foundDate,
         tags: formData.tags,
-        photos: photos,
-        reportedBy: 'anonymous', // TODO: Get from auth context
+        photo: photo,
       });
       
-      setIsSubmitted(true);
-    } catch (error) {
+      if (result.success) {
+        setIsSubmitted(true);
+        // Redirect after 3 seconds
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 3000);
+      } else {
+        setSubmitError(result.error || 'Failed to submit item. Please try again.');
+      }
+    } catch (error: any) {
       console.error('Error submitting item:', error);
-      // TODO: Show error message to user
+      setSubmitError(error.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -152,8 +165,11 @@ export default function ReportItemForm() {
         <h2 className="text-3xl font-bold text-white mb-4 bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
           Thanks!
         </h2>
-        <p className="text-zinc-300 text-lg mb-10 leading-relaxed">
+        <p className="text-zinc-300 text-lg mb-6 leading-relaxed">
           A staff member will review your submission and publish it shortly.
+        </p>
+        <p className="text-zinc-400 text-sm mb-10">
+          Redirecting to home page in a few seconds...
         </p>
         <Link href="/">
           <button
@@ -185,7 +201,7 @@ export default function ReportItemForm() {
             <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+          </svg>
             </div>
           </div>
           <div className="flex-1 min-w-0">
@@ -199,7 +215,7 @@ export default function ReportItemForm() {
         <div className="space-y-1 mb-6">
           <div className="h-0.5 bg-gradient-to-r from-purple-500/30 via-pink-500/30 to-purple-500/30 rounded-full"></div>
           <div className="h-0.5 bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-pink-500/20 rounded-full"></div>
-        </div>
+      </div>
       <form onSubmit={handleSubmit} className="space-y-6">
         <Input
           label="Title"
@@ -331,6 +347,21 @@ export default function ReportItemForm() {
           )}
         </div>
 
+        {/* Error message */}
+        {submitError && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-red-300 font-medium mb-1">Submission Failed</p>
+                <p className="text-red-200 text-sm">{submitError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <button
           type="submit"
           className="w-full relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-12 px-10 text-sm min-w-40"
@@ -345,15 +376,15 @@ export default function ReportItemForm() {
             style={{ 
               backgroundColor: '#0b0b0c',
             }}
-          >
-            {isSubmitting ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Submitting...
-              </div>
-            ) : (
-              'Submit Item'
-            )}
+        >
+          {isSubmitting ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Submitting...
+            </div>
+          ) : (
+            'Submit Item'
+          )}
           </span>
         </button>
       </form>

@@ -454,7 +454,7 @@ export async function adminApproveClaim(
   });
 
   // Create notification for the claimant
-  await supabase
+  const { error: notificationError } = await supabase
     .from('notifications')
     .insert({
       recipient_user_id: claim.claimant_id,
@@ -463,11 +463,12 @@ export async function adminApproveClaim(
       type: 'claim_approved',
       item_id: claim.item_id,
       claim_id: claimId,
-    })
-    .catch((error) => {
-      // Log but don't fail - notifications are nice-to-have
-      console.error('Error creating notification for claim approval:', error);
     });
+
+  if (notificationError) {
+    // Log but don't fail - notifications are nice-to-have
+    console.error('Error creating notification for claim approval:', notificationError);
+  }
 
   return data as DbClaim;
 }
@@ -544,7 +545,7 @@ export async function adminDenyClaim(
   });
 
   // Create notification for the claimant
-  await supabase
+  const { error: notificationError } = await supabase
     .from('notifications')
     .insert({
       recipient_user_id: claim.claimant_id,
@@ -553,11 +554,12 @@ export async function adminDenyClaim(
       type: 'claim_denied',
       item_id: claim.item_id,
       claim_id: claimId,
-    })
-    .catch((error) => {
-      // Log but don't fail - notifications are nice-to-have
-      console.error('Error creating notification for claim denial:', error);
     });
+
+  if (notificationError) {
+    // Log but don't fail - notifications are nice-to-have
+    console.error('Error creating notification for claim denial:', notificationError);
+  }
 
   return data as DbClaim;
 }

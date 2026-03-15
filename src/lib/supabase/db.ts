@@ -401,16 +401,29 @@ export async function adminApproveClaim(
 
   const now = new Date().toISOString();
 
-  // Get the claim to get item_id for logging
+  // Get the claim to get item_id, claimant_id, and item title for logging and notification
   const { data: claim, error: claimError } = await supabase
     .from('claims')
-    .select('item_id')
+    .select('item_id, claimant_id')
     .eq('id', claimId)
     .eq('school_id', schoolId)
     .single();
 
   if (claimError || !claim) {
     throw new Error('Claim not found');
+  }
+
+  // Get item title for notification
+  let itemTitle = 'Item';
+  if (claim.item_id) {
+    const { data: item } = await supabase
+      .from('items')
+      .select('title')
+      .eq('id', claim.item_id)
+      .single();
+    if (item) {
+      itemTitle = item.title;
+    }
   }
 
   const { data, error } = await supabase
@@ -440,6 +453,22 @@ export async function adminApproveClaim(
     metadata: { claimId },
   });
 
+  // Create notification for the claimant
+  await supabase
+    .from('notifications')
+    .insert({
+      recipient_user_id: claim.claimant_id,
+      title: 'Claim Approved',
+      body: itemTitle,
+      type: 'claim_approved',
+      item_id: claim.item_id,
+      claim_id: claimId,
+    })
+    .catch((error) => {
+      // Log but don't fail - notifications are nice-to-have
+      console.error('Error creating notification for claim approval:', error);
+    });
+
   return data as DbClaim;
 }
 
@@ -462,16 +491,29 @@ export async function adminDenyClaim(
 
   const now = new Date().toISOString();
 
-  // Get the claim to get item_id for logging
+  // Get the claim to get item_id, claimant_id, and item title for logging and notification
   const { data: claim, error: claimError } = await supabase
     .from('claims')
-    .select('item_id')
+    .select('item_id, claimant_id')
     .eq('id', claimId)
     .eq('school_id', schoolId)
     .single();
 
   if (claimError || !claim) {
     throw new Error('Claim not found');
+  }
+
+  // Get item title for notification
+  let itemTitle = 'Item';
+  if (claim.item_id) {
+    const { data: item } = await supabase
+      .from('items')
+      .select('title')
+      .eq('id', claim.item_id)
+      .single();
+    if (item) {
+      itemTitle = item.title;
+    }
   }
 
   const { data, error } = await supabase
@@ -500,6 +542,22 @@ export async function adminDenyClaim(
     eventType: 'claim_denied',
     metadata: { claimId },
   });
+
+  // Create notification for the claimant
+  await supabase
+    .from('notifications')
+    .insert({
+      recipient_user_id: claim.claimant_id,
+      title: 'Claim Denied',
+      body: itemTitle,
+      type: 'claim_denied',
+      item_id: claim.item_id,
+      claim_id: claimId,
+    })
+    .catch((error) => {
+      // Log but don't fail - notifications are nice-to-have
+      console.error('Error creating notification for claim denial:', error);
+    });
 
   return data as DbClaim;
 }

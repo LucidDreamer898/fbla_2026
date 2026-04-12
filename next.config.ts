@@ -15,6 +15,9 @@ const getSupabaseHostname = (): string | undefined => {
 const supabaseHostname = getSupabaseHostname();
 
 const nextConfig: NextConfig = {
+  experimental: {
+    optimizePackageImports: ['@clerk/nextjs'],
+  },
   images: {
     remotePatterns: [
       {

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { Suspense, useState, useEffect } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
@@ -9,13 +9,16 @@ import { Input } from '@/components/ui/Input';
 import { FirestoreItem } from '@/types/item';
 import { getItem } from '@/lib/items/queries';
 import { submitClaim, getUserClaims } from '@/lib/claims/actions';
+import { cn } from '@/lib/utils';
 
 
-export default function ItemDetailPage() {
+function ItemDetailPageContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useUser();
   const itemId = params.id as string;
+  const fromAdmin = searchParams.get('from') === 'admin';
   const [item, setItem] = useState<FirestoreItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -201,10 +204,10 @@ export default function ItemDetailPage() {
             <h1 className="text-2xl font-bold text-white mb-4">Item Not Found</h1>
             <p className="text-gray-400 mb-6">The item you&apos;re looking for doesn&apos;t exist or has been removed.</p>
             <Link 
-              href="/items" 
+              href={fromAdmin ? '/admin' : '/items'}
               className="inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 h-10 px-10 text-sm min-w-40 bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90"
             >
-              Back to Browse
+              {fromAdmin ? 'Back to Admin' : 'Back to Browse'}
             </Link>
           </div>
         </div>
@@ -467,24 +470,29 @@ export default function ItemDetailPage() {
                 {/* Action Buttons */}
                 <div className="flex gap-4 pt-4">
                   <Link 
-                    href="/items" 
-                    className="inline-flex items-center justify-center flex-1 bg-zinc-700/50 hover:bg-zinc-600/50 border border-zinc-600/50 text-white font-medium h-12 rounded-lg transition-all duration-200"
+                    href={fromAdmin ? '/admin' : '/items'}
+                    className={cn(
+                      'inline-flex items-center justify-center bg-zinc-700/50 hover:bg-zinc-600/50 border border-zinc-600/50 text-white font-medium h-12 rounded-lg transition-all duration-200',
+                      fromAdmin && item.status === 'pending' ? 'flex-1 w-full' : 'flex-1'
+                    )}
                   >
-                    Back to Browse
+                    {fromAdmin ? 'Back to Admin' : 'Back to Browse'}
                   </Link>
-                  {!claimStatus || claimStatus.status === 'denied' ? (
-                    <Button 
-                      onClick={() => setIsClaimModalOpen(true)}
-                      className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium h-12 rounded-lg transition-all duration-200"
-                    >
-                      {claimStatus?.status === 'denied' ? 'Submit New Claim' : 'Claim This Item'}
-                    </Button>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-                      {claimStatus.status === 'approved' 
-                        ? '✅ Your claim has been approved!' 
-                        : '⏳ Your claim is pending review'}
-                    </div>
+                  {!(fromAdmin && item.status === 'pending') && (
+                    !claimStatus || claimStatus.status === 'denied' ? (
+                      <Button 
+                        onClick={() => setIsClaimModalOpen(true)}
+                        className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium h-12 rounded-lg transition-all duration-200"
+                      >
+                        {claimStatus?.status === 'denied' ? 'Submit New Claim' : 'Claim This Item'}
+                      </Button>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                        {claimStatus.status === 'approved' 
+                          ? '✅ Your claim has been approved!' 
+                          : '⏳ Your claim is pending review'}
+                      </div>
+                    )
                   )}
                 </div>
               </div>
@@ -645,5 +653,26 @@ export default function ItemDetailPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function ItemDetailLoadingFallback() {
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-lg text-gray-300">Loading item details...</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ItemDetailPage() {
+  return (
+    <Suspense fallback={<ItemDetailLoadingFallback />}>
+      <ItemDetailPageContent />
+    </Suspense>
   );
 }

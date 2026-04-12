@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
+import LaunchAnimation from '@/components/LaunchAnimation';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -120,6 +121,7 @@ export default function RootLayout({
     >
       <html lang="en">
         <body className="antialiased" suppressHydrationWarning={true}>
+          <LaunchAnimation />
           {children}
         </body>
       </html>

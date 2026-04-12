@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useUser, useOrganization } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import ItemCard from '@/components/items/ItemCard';
@@ -39,6 +39,9 @@ export default function BrowseItemsPage() {
     hasPhoto: false,
   });
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+  /** Throttle background refetches so tab switches / focus don’t reload every time */
+  const lastSuccessfulFetchAt = useRef(0);
+  const BACKGROUND_REFETCH_MIN_MS = 45_000;
 
   // Fetch items from Supabase
   const fetchItems = useCallback(async () => {
@@ -64,6 +67,7 @@ export default function BrowseItemsPage() {
 
       if (result.success) {
         setItems(result.items);
+        lastSuccessfulFetchAt.current = Date.now();
       } else {
         setError(result.error);
       }
@@ -79,31 +83,19 @@ export default function BrowseItemsPage() {
     fetchItems();
   }, [fetchItems]);
 
-  // Refresh data when page becomes visible (e.g., user returns from admin panel)
+  // Optional refresh when returning to the tab (throttled; use Refresh for immediate reload)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchItems();
-      }
+      if (document.visibilityState !== 'visible' || !user) return;
+      if (Date.now() - lastSuccessfulFetchAt.current < BACKGROUND_REFETCH_MIN_MS) return;
+      fetchItems();
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [fetchItems]);
-
-  // Also refresh on window focus (when user switches back to the tab)
-  useEffect(() => {
-    const handleFocus = () => {
-      fetchItems();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [fetchItems]);
+  }, [fetchItems, user]);
 
   // Convert database items to ItemCard format and apply client-side filters
   const filteredAndSortedItems = useMemo(() => {

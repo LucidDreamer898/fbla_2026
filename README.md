@@ -89,7 +89,7 @@ src/
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 14 with App Router
+- **Framework**: Next.js 15 with App Router
 - **Language**: TypeScript (strict mode)
 - **Styling**: Tailwind CSS with custom CSS variables
 - **Linting**: ESLint with accessibility rules

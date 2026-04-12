@@ -155,8 +155,6 @@ export async function listItems(
       })
     );
 
-    console.log(`[listItems] Returning ${itemsWithPhotos.length} items for school ${schoolId}, role: ${role}, includePending: ${includePending}`);
-
     return {
       success: true,
       items: itemsWithPhotos,

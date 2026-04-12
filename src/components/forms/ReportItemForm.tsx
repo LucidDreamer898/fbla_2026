@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';
 import { Tag } from '@/components/ui/Tag';
 import { Card } from '@/components/ui/Card';
 import { submitItem } from '@/lib/items/actions';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 interface FormData {
@@ -37,6 +38,28 @@ const categories = [
   { value: 'Other', label: 'Other' },
 ];
 
+/** Simulated AI delay before applying demo tags (ms). */
+const AI_SUGGEST_DELAY_MS = 950;
+
+/** Suggested tags for the Lafayette Lancers demo shirt (report form helper). */
+const DEMO_SHIRT_TAGS: readonly string[] = [
+  'Lafayette High School',
+  'Lancers',
+  'Wildwood MO',
+  'spirit wear',
+  'graphic tee',
+  't-shirt',
+  'cream',
+  'off-white',
+  'yellow',
+  'black',
+  'school mascot',
+  'established 1960',
+  '1960',
+  'athletic apparel',
+  'Missouri',
+];
+
 export default function ReportItemForm() {
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -53,6 +76,19 @@ export default function ReportItemForm() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [tagList, setTagList] = useState<string[]>([]);
+  const [aiSuggestLoading, setAiSuggestLoading] = useState(false);
+  const tagListRef = useRef<string[]>([]);
+  const aiSuggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  tagListRef.current = tagList;
+
+  useEffect(() => {
+    return () => {
+      if (aiSuggestTimerRef.current !== null) {
+        clearTimeout(aiSuggestTimerRef.current);
+      }
+    };
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -147,6 +183,26 @@ export default function ReportItemForm() {
     const newTags = tagList.filter((_, index) => index !== indexToRemove);
     setTagList(newTags);
     setFormData(prev => ({ ...prev, tags: newTags.join(', ') }));
+  };
+
+  const applyDemoShirtTags = () => {
+    if (aiSuggestLoading) return;
+    setAiSuggestLoading(true);
+    aiSuggestTimerRef.current = setTimeout(() => {
+      const current = tagListRef.current;
+      const seen = new Set(current.map((t) => t.toLowerCase()));
+      const merged = [...current];
+      for (const tag of DEMO_SHIRT_TAGS) {
+        const lower = tag.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          merged.push(tag);
+        }
+      }
+      handleTagsChange(merged.join(', '));
+      setAiSuggestLoading(false);
+      aiSuggestTimerRef.current = null;
+    }, AI_SUGGEST_DELAY_MS);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -264,15 +320,98 @@ export default function ReportItemForm() {
         />
 
         <div className="space-y-2">
-          <label className="text-foreground text-sm font-medium">
+          <label className="text-foreground text-sm font-medium" htmlFor="report-item-tags">
             Tags
           </label>
-          <Input
-            placeholder="Separate tags with commas (e.g., red, backpack, laptop)"
-            value={formData.tags}
-            onChange={(e) => handleTagsChange(e.target.value)}
-            error={errors.tags}
-          />
+          <div className="flex gap-2 items-start">
+            <div className="flex-1 min-w-0">
+              <Input
+                id="report-item-tags"
+                placeholder="Separate tags with commas (e.g., red, backpack, laptop)"
+                value={formData.tags}
+                onChange={(e) => handleTagsChange(e.target.value)}
+                error={errors.tags}
+              />
+            </div>
+            <div
+              className={cn(
+                'ai-tag-suggest-wrap relative isolate h-12 w-12 shrink-0',
+                aiSuggestLoading && 'ai-tag-suggest-wrap--loading'
+              )}
+            >
+              <span
+                className="ai-tag-suggest-halo pointer-events-none absolute -inset-3 rounded-xl -z-10"
+                aria-hidden
+              />
+              <button
+                type="button"
+                disabled={aiSuggestLoading}
+                aria-busy={aiSuggestLoading}
+                aria-label={
+                  aiSuggestLoading
+                    ? 'Generating tag suggestions'
+                    : 'Add all suggested tags from the example shirt'
+                }
+                onClick={applyDemoShirtTags}
+                className={cn(
+                  'group relative z-10 h-12 w-12 overflow-hidden rounded-lg p-0',
+                  'shadow-[0_0_0_1px_rgba(255,255,255,0.12)_inset,0_0_28px_-4px_rgba(167,139,250,0.65),0_0_40px_-10px_rgba(236,72,153,0.45),0_6px_16px_-6px_rgba(0,0,0,0.55)]',
+                  'transition-shadow duration-200 ease-out',
+                  'hover:shadow-[0_0_0_1px_rgba(255,255,255,0.18)_inset,0_0_36px_-2px_rgba(167,139,250,0.85),0_0_48px_-8px_rgba(236,72,153,0.55),0_8px_20px_-6px_rgba(0,0,0,0.45)]',
+                  'active:scale-[0.96]',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0b0c]',
+                  'disabled:pointer-events-none disabled:opacity-90'
+                )}
+              >
+                <span
+                  className="ai-tag-suggest-border-spin pointer-events-none"
+                  aria-hidden
+                />
+                <span
+                  className={cn(
+                    'absolute inset-[2px] z-[1] flex items-center justify-center rounded-[6px]',
+                    'bg-gradient-to-br from-violet-950/95 via-[#1a1025] to-cyan-950/90',
+                    'transition-all duration-200',
+                    'group-hover:from-violet-900/95 group-hover:via-[#221030] group-hover:to-cyan-900/90',
+                    'group-disabled:from-violet-950/95 group-disabled:via-[#1a1025] group-disabled:to-cyan-950/90'
+                  )}
+                >
+                  {aiSuggestLoading ? (
+                    <span
+                      className="h-5 w-5 rounded-full border-2 border-white/15 border-t-purple-300 border-r-cyan-400/60 animate-spin"
+                      aria-hidden
+                    />
+                  ) : (
+                    <svg
+                      className="h-5 w-5 text-white transition-all duration-200 drop-shadow-[0_0_14px_rgba(216,180,254,0.9)] group-hover:drop-shadow-[0_0_18px_rgba(244,194,255,1),0_0_28px_rgba(34,211,238,0.35)]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.75}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.847a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.847.813a4.5 4.5 0 0 0-3.09 3.09zM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456zM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423z" />
+                    </svg>
+                  )}
+                </span>
+              </button>
+            </div>
+          </div>
+          {aiSuggestLoading && (
+            <p
+              className="mt-1.5 flex items-center gap-2 text-xs text-purple-300/90"
+              role="status"
+              aria-live="polite"
+            >
+              <span
+                className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-fuchsia-400 shadow-[0_0_8px_rgba(232,121,249,0.8)] animate-pulse"
+                aria-hidden
+              />
+              Generating tag suggestions…
+            </p>
+          )}
           {tagList.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {tagList.map((tag, index) => (

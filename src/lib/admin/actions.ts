@@ -145,6 +145,94 @@ export async function listPendingItems(): Promise<{
 }
 
 /**
+ * List archived items for the admin's school
+ */
+export async function listArchivedItems(): Promise<{
+  success: true;
+  items: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    category: string;
+    color: string | null;
+    location_found: string;
+    date_found: string;
+    photo_url: string | null;
+    created_by: string;
+    created_at: string;
+  }>;
+} | {
+  success: false;
+  error: string;
+}> {
+  try {
+    const admin = await getAdminSchoolId();
+    if (!admin) {
+      return {
+        success: false,
+        error: 'Unauthorized. Admin access required.',
+      };
+    }
+
+    const supabase = getSupabaseAdmin();
+    const { data: items, error } = await supabase
+      .from('items')
+      .select('id, title, description, category, color, location_found, date_found, photo_path, created_by, created_at')
+      .eq('school_id', admin.schoolId)
+      .eq('status', 'archived')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error listing archived items:', error);
+      return {
+        success: false,
+        error: 'Failed to load archived items.',
+      };
+    }
+
+    const itemsWithPhotos = await Promise.all(
+      (items || []).map(async (item) => {
+        let photoUrl: string | null = null;
+        if (item.photo_path) {
+          try {
+            const { data } = await supabase.storage
+              .from('item-photos')
+              .createSignedUrl(item.photo_path, 3600);
+            photoUrl = data?.signedUrl || null;
+          } catch (err) {
+            console.error('Error generating signed URL:', err);
+          }
+        }
+
+        return {
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          category: item.category,
+          color: item.color,
+          location_found: item.location_found,
+          date_found: item.date_found,
+          photo_url: photoUrl,
+          created_by: item.created_by,
+          created_at: item.created_at,
+        };
+      })
+    );
+
+    return {
+      success: true,
+      items: itemsWithPhotos,
+    };
+  } catch (error: any) {
+    console.error('Error listing archived items:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to load archived items.',
+    };
+  }
+}
+
+/**
  * List pending claims for admin review
  */
 export async function listPendingClaims(): Promise<{
@@ -589,6 +677,7 @@ export async function getAdminStats(): Promise<{
   stats: {
     approvedToday: number;
     totalItems: number;
+    archivedCount: number;
   };
 } | {
   success: false;
@@ -633,11 +722,22 @@ export async function getAdminStats(): Promise<{
       console.error('Error counting total items:', totalError);
     }
 
+    const { count: archivedCount, error: archivedError } = await supabase
+      .from('items')
+      .select('*', { count: 'exact', head: true })
+      .eq('school_id', schoolId)
+      .eq('status', 'archived');
+
+    if (archivedError) {
+      console.error('Error counting archived items:', archivedError);
+    }
+
     return {
       success: true,
       stats: {
         approvedToday: approvedTodayCount || 0,
         totalItems: totalItemsCount || 0,
+        archivedCount: archivedCount || 0,
       },
     };
   } catch (error: any) {

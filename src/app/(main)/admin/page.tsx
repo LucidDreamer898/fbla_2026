@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useOrganization } from '@clerk/nextjs';
 import {
   listPendingItems,
+  listArchivedItems,
   listPendingClaims,
   approveItem,
   archiveItem,
@@ -15,6 +17,47 @@ import {
   getSchoolAuditLog,
   getAdminStats,
 } from '@/lib/admin/actions';
+import { cn } from '@/lib/utils';
+
+type AdminActionVariant = 'success' | 'danger' | 'amber';
+
+const adminActionStyles: Record<AdminActionVariant, string> = {
+  success:
+    'bg-emerald-800/50 text-emerald-100 hover:bg-emerald-700/55 focus-visible:ring-emerald-500/60',
+  danger:
+    'bg-red-800/45 text-red-100 hover:bg-red-700/50 focus-visible:ring-red-500/60',
+  amber:
+    'bg-amber-800/40 text-amber-100 hover:bg-amber-700/45 focus-visible:ring-amber-500/60',
+};
+
+function AdminActionButton({
+  variant,
+  className,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant: AdminActionVariant;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4',
+        'text-sm font-medium',
+        'border border-white/[0.06]',
+        'shadow-sm',
+        'transition-all duration-150 active:scale-[0.98]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0b0c]',
+        'disabled:pointer-events-none disabled:opacity-50',
+        adminActionStyles[variant],
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
 
 // Pending Item type
 interface PendingItem {
@@ -54,10 +97,13 @@ interface AuditEvent {
 export default function AdminPage() {
   const { organization } = useOrganization();
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
+  const [archivedItems, setArchivedItems] = useState<PendingItem[]>([]);
   const [claimRequests, setClaimRequests] = useState<ClaimRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'items' | 'claims' | 'settings'>('items');
+  const [loadingArchived, setLoadingArchived] = useState(false);
+  const [archivedError, setArchivedError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'items' | 'archived' | 'claims' | 'settings'>('items');
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [auditTimeline, setAuditTimeline] = useState<AuditEvent[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
@@ -87,6 +133,7 @@ export default function AdminPage() {
   const [adminStats, setAdminStats] = useState({
     approvedToday: 0,
     totalItems: 0,
+    archivedCount: 0,
   });
   
   // Get join codes from organization metadata
@@ -97,20 +144,12 @@ export default function AdminPage() {
   const adminJoinCode = metadata?.adminJoinCode;
   const studentJoinCode = metadata?.studentJoinCode;
 
-  // Debug: Log metadata to console
-  useEffect(() => {
-    if (organization) {
-      console.log('Organization metadata:', organization.publicMetadata);
-      console.log('Admin join code:', adminJoinCode);
-      console.log('Student join code:', studentJoinCode);
-    }
-  }, [organization, adminJoinCode, studentJoinCode]);
-
   // Fetch pending items, claims, and stats
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       setError(null);
+      let shouldAutoSeed = false;
 
       try {
         const [itemsResult, claimsResult, statsResult] = await Promise.all([
@@ -134,37 +173,37 @@ export default function AdminPage() {
 
         if (statsResult.success) {
           setAdminStats(statsResult.stats);
-          
-          // Automatically seed filler items if school has no items
-          if (statsResult.stats.totalItems === 0) {
-            try {
-              const seedResponse = await fetch('/api/seed-filler-items');
-              const seedData = await seedResponse.json();
-              if (seedData.success && seedData.totalSeeded > 0) {
-                console.log(`[AdminPage] Auto-seeded ${seedData.totalSeeded} filler items`);
-                // Refresh data after seeding
-                const [refreshItemsResult, refreshStatsResult] = await Promise.all([
-                  listPendingItems(),
-                  getAdminStats(),
-                ]);
-                if (refreshItemsResult.success) {
-                  setPendingItems(refreshItemsResult.items);
-                }
-                if (refreshStatsResult.success) {
-                  setAdminStats(refreshStatsResult.stats);
-                }
-              }
-            } catch (seedError) {
-              console.error('[AdminPage] Error auto-seeding items:', seedError);
-              // Don't show error to user - seeding is optional
-            }
-          }
+          shouldAutoSeed = statsResult.stats.totalItems === 0;
         }
       } catch (err: any) {
         console.error('Error fetching admin data:', err);
         setError(err.message || 'Failed to load admin data.');
       } finally {
-      setLoading(false);
+        setLoading(false);
+      }
+
+      // Don’t block first paint: seed + refresh runs after the admin UI is interactive
+      if (shouldAutoSeed) {
+        void (async () => {
+          try {
+            const seedResponse = await fetch('/api/seed-filler-items');
+            const seedData = await seedResponse.json();
+            if (seedData.success && seedData.totalSeeded > 0) {
+              const [refreshItemsResult, refreshStatsResult] = await Promise.all([
+                listPendingItems(),
+                getAdminStats(),
+              ]);
+              if (refreshItemsResult.success) {
+                setPendingItems(refreshItemsResult.items);
+              }
+              if (refreshStatsResult.success) {
+                setAdminStats(refreshStatsResult.stats);
+              }
+            }
+          } catch (seedError) {
+            console.error('[AdminPage] Error auto-seeding items:', seedError);
+          }
+        })();
       }
     };
 
@@ -250,6 +289,7 @@ export default function AdminPage() {
       const result = await archiveItem(itemId);
       if (result.success) {
       setPendingItems(prev => prev.filter(item => item.id !== itemId));
+      setAdminStats((prev) => ({ ...prev, archivedCount: prev.archivedCount + 1 }));
       } else {
         alert(`Error: ${result.error}`);
       }
@@ -267,6 +307,9 @@ export default function AdminPage() {
       const result = await markItemReturned(itemId, archive);
       if (result.success) {
         setPendingItems(prev => prev.filter(item => item.id !== itemId));
+        if (archive) {
+          setAdminStats((prev) => ({ ...prev, archivedCount: prev.archivedCount + 1 }));
+        }
         alert(`✅ Item marked as returned${archive ? ' and archived' : ''}.`);
       } else {
         alert(`Error: ${result.error}`);
@@ -382,7 +425,7 @@ export default function AdminPage() {
         {/* Admin Stats */}
         <div className="flex justify-center mb-8 sm:mb-12">
           <div className="w-full max-w-7xl">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 mb-8 sm:mb-12">
               <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-lg p-6 backdrop-blur-md">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
@@ -421,6 +464,19 @@ export default function AdminPage() {
                 <div className="text-3xl font-bold text-white">{adminStats.approvedToday}</div>
                 <div className="text-sm text-gray-400">Items approved</div>
               </div>
+
+              <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-lg p-6 backdrop-blur-md">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 bg-gradient-to-r from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-.01M5 8a2 2 0 110-.01M12 8v9m-4-4h8m-8 0a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v5a2 2 0 01-2 2" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-white">Archived</h3>
+                </div>
+                <div className="text-3xl font-bold text-white">{adminStats.archivedCount}</div>
+                <div className="text-sm text-gray-400">Removed from active list</div>
+              </div>
               
               <div className="bg-zinc-800/40 border border-zinc-700/30 rounded-lg p-6 backdrop-blur-md">
                 <div className="flex items-center gap-3 mb-2">
@@ -451,6 +507,16 @@ export default function AdminPage() {
                 }`}
               >
                 Pending Items ({pendingItems.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('archived')}
+                className={`px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base font-medium transition-all whitespace-nowrap ${
+                  activeTab === 'archived'
+                    ? 'text-white border-b-2 border-purple-500'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Archived ({adminStats.archivedCount})
               </button>
               <button
                 onClick={() => setActiveTab('claims')}
@@ -514,220 +580,338 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                   {pendingItems.map((item) => (
                     <div key={item.id} className="bg-zinc-800/40 border border-zinc-700/30 rounded-lg p-4 sm:p-6 backdrop-blur-md shadow-2xl">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="px-3 py-1 bg-orange-500/20 text-orange-400 text-xs font-medium rounded-full border border-orange-500/30">
-                              {item.category}
-                            </span>
-                            <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-medium rounded-full border border-yellow-500/30">
-                              Pending
-                            </span>
-                          </div>
-                          <h3 className="text-xl font-semibold text-white mb-2">{item.title}</h3>
-                          <p className="text-gray-300 mb-4 leading-relaxed">{item.description || 'No description'}</p>
-                          
-                          <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div className="flex items-center gap-2 text-sm text-gray-400">
-                              <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                              </svg>
-                              <span className="truncate">{item.location_found}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-gray-400">
-                              <svg className="w-4 h-4 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              <span>{new Date(item.date_found).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                          
-                          {item.color && (
-                            <div className="flex flex-wrap gap-2 mb-4">
-                              <span className="px-3 py-1 bg-gradient-to-r from-zinc-800/50 to-zinc-700/50 text-gray-300 text-xs font-medium rounded-md border border-zinc-600/30">
-                                Color: {item.color}
-                                </span>
-                            </div>
-                          )}
+                      <Link
+                        href={`/items/${item.id}?from=admin`}
+                        className={cn(
+                          'group/item-detail block rounded-xl p-2 -m-2 mb-4',
+                          'transition-colors duration-200',
+                          'hover:bg-zinc-700/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900'
+                        )}
+                      >
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="px-3 py-1 bg-orange-500/20 text-orange-400 text-xs font-medium rounded-full border border-orange-500/30">
+                            {item.category}
+                          </span>
+                          <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-medium rounded-full border border-yellow-500/30">
+                            Pending
+                          </span>
+                        </div>
+                        <h3 className="text-xl font-semibold text-white mb-2 group-hover/item-detail:text-purple-100 transition-colors">
+                          {item.title}
+                        </h3>
+                        <p className="text-gray-300 mb-4 leading-relaxed">{item.description || 'No description'}</p>
 
-                          {item.photo_url && (
-                            <div className="mb-4">
-                              <img src={item.photo_url} alt={item.title} className="w-full h-48 object-cover rounded-lg" />
-                            </div>
-                          )}
-
-                          {/* Audit Timeline Button */}
-                          <button
-                            onClick={() => setSelectedItemId(selectedItemId === item.id ? null : item.id)}
-                            className="mb-4 text-sm text-purple-400 hover:text-purple-300 flex items-center gap-2"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div className="flex items-center gap-2 text-sm text-gray-400">
+                            <svg className="w-4 h-4 shrink-0 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
-                            {selectedItemId === item.id ? 'Hide' : 'Show'} Audit Timeline
-                          </button>
+                            <span className="truncate">{item.location_found}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-400">
+                            <svg className="w-4 h-4 shrink-0 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>{new Date(item.date_found).toLocaleDateString()}</span>
+                          </div>
+                        </div>
 
-                          {/* Audit Timeline */}
-                          {selectedItemId === item.id && (
-                            <div className="mb-4 bg-zinc-900/50 rounded-lg p-4 border border-zinc-700/30">
-                              {loadingAudit ? (
-                                <div className="flex items-center gap-2 text-sm text-gray-400">
-                                  <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                                  Loading timeline...
-                                </div>
-                              ) : auditTimeline.length > 0 ? (
-                                <div className="space-y-3">
-                                  <h4 className="text-sm font-semibold text-white mb-2">Audit Timeline</h4>
-                                  {auditTimeline.map((event) => (
-                                    <div key={event.id} className="text-xs text-gray-400 border-l-2 border-purple-500/30 pl-3">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <span className="font-medium text-purple-400">{event.event_type}</span>
-                                        <span className="text-gray-500">
-                                          {new Date(event.created_at).toLocaleString()}
-                                        </span>
-                                      </div>
-                                      {Object.keys(event.metadata).length > 0 && (
-                                        <div className="text-gray-500 mt-1">
-                                          {JSON.stringify(event.metadata, null, 2)}
-                                        </div>
-                                      )}
+                        {item.color && (
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            <span className="px-3 py-1 bg-gradient-to-r from-zinc-800/50 to-zinc-700/50 text-gray-300 text-xs font-medium rounded-md border border-zinc-600/30">
+                              Color: {item.color}
+                            </span>
+                          </div>
+                        )}
+
+                        {item.photo_url && (
+                          <div>
+                            <img src={item.photo_url} alt={item.title} className="w-full h-48 object-cover rounded-lg" />
+                          </div>
+                        )}
+                      </Link>
+
+                      {/* Audit Timeline Button */}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedItemId(selectedItemId === item.id ? null : item.id)}
+                        className="mb-4 text-sm text-purple-400 hover:text-purple-300 flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {selectedItemId === item.id ? 'Hide' : 'Show'} Audit Timeline
+                      </button>
+
+                      {/* Audit Timeline */}
+                      {selectedItemId === item.id && (
+                        <div className="mb-4 bg-zinc-900/50 rounded-lg p-4 border border-zinc-700/30">
+                          {loadingAudit ? (
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                              Loading timeline...
+                            </div>
+                          ) : auditTimeline.length > 0 ? (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-semibold text-white mb-2">Audit Timeline</h4>
+                              {auditTimeline.map((event) => (
+                                <div key={event.id} className="text-xs text-gray-400 border-l-2 border-purple-500/30 pl-3">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-purple-400">{event.event_type}</span>
+                                    <span className="text-gray-500">
+                                      {new Date(event.created_at).toLocaleString()}
+                                    </span>
+                                  </div>
+                                  {Object.keys(event.metadata).length > 0 && (
+                                    <div className="text-gray-500 mt-1">
+                                      {JSON.stringify(event.metadata, null, 2)}
                                     </div>
+                                  )}
+                                </div>
                               ))}
                             </div>
-                              ) : (
-                                <p className="text-sm text-gray-400">No events found</p>
-                              )}
-                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-400">No events found</p>
                           )}
                         </div>
-                      </div>
-                      
-                      <div className="flex flex-col gap-2 pt-4 border-t border-zinc-700/30">
-                        <div className="flex gap-2">
-                        <button
+                      )}
+
+                      <div className="flex gap-2 pt-4 border-t border-zinc-700/30">
+                        <AdminActionButton
+                          variant="success"
+                          className="flex-1 min-w-0"
                           onClick={() => handleApprove(item.id)}
-                            disabled={processingItem === item.id}
-                          className="flex-1 relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 text-sm"
-                          style={{ 
-                            background: 'linear-gradient(135deg, #4ade80, #22c55e)',
-                            padding: '1px',
-                          }}
-                        >
-                          <span 
-                            className="w-full h-full flex items-center justify-center gap-2"
-                            style={{ 
-                              backgroundColor: '#0b0b0c',
-                              borderRadius: '7px',
-                            }}
-                          >
-                              {processingItem === item.id ? (
-                                <div className="w-4 h-4 border-2 border-emerald-200 border-t-transparent rounded-full animate-spin"></div>
-                              ) : (
-                                <>
-                            <svg className="w-4 h-4 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Approve
-                                </>
-                              )}
-                          </span>
-                        </button>
-                        <button
-                            onClick={() => handleArchive(item.id)}
-                            disabled={processingItem === item.id}
-                          className="flex-1 relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 text-sm"
-                          style={{ 
-                            background: 'linear-gradient(135deg, #f87171, #ef4444)',
-                            padding: '1px',
-                          }}
-                        >
-                          <span 
-                            className="w-full h-full flex items-center justify-center gap-2"
-                            style={{ 
-                              backgroundColor: '#0b0b0c',
-                              borderRadius: '7px',
-                            }}
-                          >
-                              {processingItem === item.id ? (
-                                <div className="w-4 h-4 border-2 border-red-200 border-t-transparent rounded-full animate-spin"></div>
-                              ) : (
-                                <>
-                            <svg className="w-4 h-4 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                                  Archive
-                                </>
-                              )}
-                            </span>
-                          </button>
-                        </div>
-                        <button
-                          onClick={() => handleMarkReturned(item.id, false)}
                           disabled={processingItem === item.id}
-                          className="w-full relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 text-sm"
-                          style={{ 
-                            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-                            padding: '1px',
-                          }}
                         >
-                          <span 
-                            className="w-full h-full flex items-center justify-center gap-2"
-                            style={{ 
-                              backgroundColor: '#0b0b0c',
-                              borderRadius: '7px',
-                            }}
-                          >
-                            {processingItem === item.id ? (
-                              <div className="w-4 h-4 border-2 border-blue-200 border-t-transparent rounded-full animate-spin"></div>
-                            ) : (
-                              <>
-                                <svg className="w-4 h-4 text-blue-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Mark as Returned
-                              </>
-                            )}
-                          </span>
-                        </button>
-                        <button
+                          {processingItem === item.id ? (
+                            <div className="h-4 w-4 shrink-0 rounded-full border-2 border-emerald-200/90 border-t-transparent animate-spin" />
+                          ) : (
+                            <>
+                              <svg className="h-4 w-4 shrink-0 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Approve
+                            </>
+                          )}
+                        </AdminActionButton>
+                        <AdminActionButton
+                          variant="amber"
+                          className="flex-1 min-w-0"
                           onClick={() => {
                             if (confirm('Mark as returned and archive this item?')) {
                               handleMarkReturned(item.id, true);
                             }
                           }}
                           disabled={processingItem === item.id}
-                          className="w-full relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 text-sm"
-                          style={{ 
-                            background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-                            padding: '1px',
-                          }}
                         >
-                          <span 
-                            className="w-full h-full flex items-center justify-center gap-2"
-                            style={{ 
-                              backgroundColor: '#0b0b0c',
-                              borderRadius: '7px',
-                            }}
-                          >
-                            {processingItem === item.id ? (
-                              <div className="w-4 h-4 border-2 border-purple-200 border-t-transparent rounded-full animate-spin"></div>
-                            ) : (
-                              <>
-                                <svg className="w-4 h-4 text-purple-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                Mark Returned & Archive
-                              </>
-                            )}
-                          </span>
-                        </button>
+                          {processingItem === item.id ? (
+                            <div className="h-4 w-4 shrink-0 rounded-full border-2 border-amber-200/90 border-t-transparent animate-spin" />
+                          ) : (
+                            <>
+                              <svg className="h-4 w-4 shrink-0 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                              </svg>
+                              Archived
+                            </>
+                          )}
+                        </AdminActionButton>
+                        <AdminActionButton
+                          variant="danger"
+                          className="flex-1 min-w-0"
+                          onClick={() => handleArchive(item.id)}
+                          disabled={processingItem === item.id}
+                        >
+                          {processingItem === item.id ? (
+                            <div className="h-4 w-4 shrink-0 rounded-full border-2 border-red-200/90 border-t-transparent animate-spin" />
+                          ) : (
+                            <>
+                              <svg className="h-4 w-4 shrink-0 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              Rejected
+                            </>
+                          )}
+                        </AdminActionButton>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             )
+            ) : activeTab === 'archived' ? (
+              loadingArchived ? (
+                <div className="text-center py-20">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 blur-3xl -z-10"></div>
+                    <div className="relative">
+                      <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-amber-500/25">
+                        <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                      <h3 className="text-2xl font-bold text-white mb-4">Loading archived items…</h3>
+                    </div>
+                  </div>
+                </div>
+              ) : archivedError ? (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6">
+                  <h3 className="text-xl font-bold text-red-300 mb-2">Could not load archived items</h3>
+                  <p className="text-red-200">{archivedError}</p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setLoadingArchived(true);
+                      setArchivedError(null);
+                      try {
+                        const result = await listArchivedItems();
+                        if (result.success) {
+                          setArchivedItems(result.items);
+                        } else {
+                          setArchivedError(result.error);
+                        }
+                      } catch (err: any) {
+                        setArchivedError(err.message || 'Failed to load archived items.');
+                      } finally {
+                        setLoadingArchived(false);
+                      }
+                    }}
+                    className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 rounded text-red-300 text-sm font-medium transition-all"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : archivedItems.length === 0 ? (
+                <div className="text-center py-20">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 blur-3xl -z-10"></div>
+                    <div className="relative">
+                      <div className="w-20 h-20 bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-amber-500/25">
+                        <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-.01M5 8a2 2 0 110-.01M12 8v9m-4-4h8m-8 0a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v5a2 2 0 01-2 2" />
+                        </svg>
+                      </div>
+                      <h3 className="text-3xl font-bold text-white mb-4">No archived items</h3>
+                      <p className="text-xl text-gray-400 max-w-md mx-auto leading-relaxed">
+                        Items you archive from pending reviews will appear here.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  <div className="flex items-center gap-3 mb-8">
+                    <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/25">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-.01M5 8a2 2 0 110-.01M12 8v9m-4-4h8m-8 0a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v5a2 2 0 01-2 2" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Archived items</h2>
+                      <p className="text-gray-400">No longer shown in the public browse list</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+                    {archivedItems.map((item) => (
+                      <div key={item.id} className="bg-zinc-800/40 border border-zinc-700/30 rounded-lg p-4 sm:p-6 backdrop-blur-md shadow-2xl">
+                        <Link
+                          href={`/items/${item.id}?from=admin`}
+                          className={cn(
+                            'group/item-detail block rounded-xl p-2 -m-2 mb-4',
+                            'transition-colors duration-200',
+                            'hover:bg-zinc-700/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900'
+                          )}
+                        >
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="px-3 py-1 bg-orange-500/20 text-orange-400 text-xs font-medium rounded-full border border-orange-500/30">
+                              {item.category}
+                            </span>
+                            <span className="px-3 py-1 bg-amber-500/20 text-amber-300 text-xs font-medium rounded-full border border-amber-500/30">
+                              Archived
+                            </span>
+                          </div>
+                          <h3 className="text-xl font-semibold text-white mb-2 group-hover/item-detail:text-purple-100 transition-colors">
+                            {item.title}
+                          </h3>
+                          <p className="text-gray-300 mb-4 leading-relaxed">{item.description || 'No description'}</p>
+
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <svg className="w-4 h-4 shrink-0 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              <span className="truncate">{item.location_found}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <svg className="w-4 h-4 shrink-0 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span>{new Date(item.date_found).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+
+                          {item.color && (
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              <span className="px-3 py-1 bg-gradient-to-r from-zinc-800/50 to-zinc-700/50 text-gray-300 text-xs font-medium rounded-md border border-zinc-600/30">
+                                Color: {item.color}
+                              </span>
+                            </div>
+                          )}
+
+                          {item.photo_url && (
+                            <div>
+                              <img src={item.photo_url} alt={item.title} className="w-full h-48 object-cover rounded-lg" />
+                            </div>
+                          )}
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedItemId(selectedItemId === item.id ? null : item.id)}
+                          className="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {selectedItemId === item.id ? 'Hide' : 'Show'} Audit Timeline
+                        </button>
+
+                        {selectedItemId === item.id && (
+                          <div className="mt-4 bg-zinc-900/50 rounded-lg p-4 border border-zinc-700/30">
+                            {loadingAudit ? (
+                              <div className="flex items-center gap-2 text-sm text-gray-400">
+                                <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                Loading timeline...
+                              </div>
+                            ) : auditTimeline.length > 0 ? (
+                              <div className="space-y-3">
+                                <h4 className="text-sm font-semibold text-white mb-2">Audit Timeline</h4>
+                                {auditTimeline.map((event) => (
+                                  <div key={event.id} className="text-xs text-gray-400 border-l-2 border-purple-500/30 pl-3">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="font-medium text-purple-400">{event.event_type}</span>
+                                      <span className="text-gray-500">
+                                        {new Date(event.created_at).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    {Object.keys(event.metadata).length > 0 && (
+                                      <div className="text-gray-500 mt-1">
+                                        {JSON.stringify(event.metadata, null, 2)}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-gray-400">No events found</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
             ) : activeTab === 'claims' ? (
               claimRequests.length === 0 ? (
                 <div className="text-center py-20">
@@ -813,63 +997,41 @@ export default function AdminPage() {
                           </div>
                         </div>
                         
-                        <div className="flex gap-3 pt-4 border-t border-zinc-700/30">
-                          <button
+                        <div className="flex gap-2.5 pt-4 border-t border-zinc-700/30">
+                          <AdminActionButton
+                            variant="success"
+                            className="flex-1 min-w-0"
                             onClick={() => handleApproveClaim(claim.id)}
                             disabled={processingClaim === claim.id}
-                            className="flex-1 relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 text-sm"
-                            style={{ 
-                              background: 'linear-gradient(135deg, #4ade80, #22c55e)',
-                              padding: '1px',
-                            }}
                           >
-                            <span 
-                              className="w-full h-full flex items-center justify-center gap-2"
-                              style={{ 
-                                backgroundColor: '#0b0b0c',
-                                borderRadius: '7px',
-                              }}
-                            >
-                              {processingClaim === claim.id ? (
-                                <div className="w-4 h-4 border-2 border-emerald-200 border-t-transparent rounded-full animate-spin"></div>
-                              ) : (
-                                <>
-                              <svg className="w-4 h-4 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              Approve Claim
-                                </>
-                              )}
-                            </span>
-                          </button>
-                          <button
+                            {processingClaim === claim.id ? (
+                              <div className="h-4 w-4 shrink-0 rounded-full border-2 border-emerald-200/90 border-t-transparent animate-spin" />
+                            ) : (
+                              <>
+                                <svg className="h-4 w-4 shrink-0 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Approve Claim
+                              </>
+                            )}
+                          </AdminActionButton>
+                          <AdminActionButton
+                            variant="danger"
+                            className="flex-1 min-w-0"
                             onClick={() => handleDenyClaim(claim.id)}
                             disabled={processingClaim === claim.id}
-                            className="flex-1 relative inline-flex items-center justify-center rounded-lg font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 text-sm"
-                            style={{ 
-                              background: 'linear-gradient(135deg, #f87171, #ef4444)',
-                              padding: '1px',
-                            }}
                           >
-                            <span 
-                              className="w-full h-full flex items-center justify-center gap-2"
-                              style={{ 
-                                backgroundColor: '#0b0b0c',
-                                borderRadius: '7px',
-                              }}
-                            >
-                              {processingClaim === claim.id ? (
-                                <div className="w-4 h-4 border-2 border-red-200 border-t-transparent rounded-full animate-spin"></div>
-                              ) : (
-                                <>
-                              <svg className="w-4 h-4 text-red-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                                  Deny Claim
-                                </>
-                              )}
-                            </span>
-                          </button>
+                            {processingClaim === claim.id ? (
+                              <div className="h-4 w-4 shrink-0 rounded-full border-2 border-red-200/90 border-t-transparent animate-spin" />
+                            ) : (
+                              <>
+                                <svg className="h-4 w-4 shrink-0 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Deny Claim
+                              </>
+                            )}
+                          </AdminActionButton>
                         </div>
                       </div>
                     ))}

@@ -1,12 +1,11 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
-import BackgroundAnimation from '@/components/BackgroundAnimation';
-import ImageCarousel from '@/components/ImageCarousel';
+import { HomeBackgroundLazy } from '@/components/HomeBackgroundLazy';
 
 export default function HomePage() {
   return (
     <>
-      <BackgroundAnimation />
+      <HomeBackgroundLazy />
       <div className="flex h-[calc(100vh-4rem)] flex-col overflow-hidden">
         {/* Main Content - Centered */}
         <div className="flex flex-1 flex-col items-center justify-center px-4 sm:px-6 lg:px-8 relative z-10" style={{ paddingTop: '2rem' }}>

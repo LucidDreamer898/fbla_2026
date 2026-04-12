@@ -12,8 +12,9 @@ export default function LaunchAnimation() {
   const [charCount, setCharCount] = useState(0);
 
   useEffect(() => {
-    const exitTimer = setTimeout(() => setPhase('exit'), 3200);
-    const doneTimer = setTimeout(() => setPhase('done'), 4100);
+    // +500ms after tagline finishes so "Lost. Found. Returned." stays readable longer
+    const exitTimer = setTimeout(() => setPhase('exit'), 3700);
+    const doneTimer = setTimeout(() => setPhase('done'), 4600);
 
     const typeStart = setTimeout(() => {
       let current = 0;
